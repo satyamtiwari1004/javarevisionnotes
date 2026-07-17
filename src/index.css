@@ -1,0 +1,38 @@
+:root {
+  --bg: #0d1117;
+  --text: #c9d1d9;
+  --text-h: #f0f6fc;
+  --border: #21262d;
+  --accent: #58a6ff;
+  --card-bg: #161b22;
+  --card-hover: #1c2128;
+
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+}
