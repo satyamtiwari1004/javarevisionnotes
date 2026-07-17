@@ -334,18 +334,19 @@ export default function Home() {
 
   return (
     <div
+      className="home-page-shell"
       style={{
         fontFamily: "'DM Sans', 'IBM Plex Sans', sans-serif",
         background: 'var(--bg-app)',
         minHeight: '100vh',
-        padding: 'clamp(20px, 4vw, 40px) clamp(16px, 3vw, 24px) 80px',
+        padding: 'clamp(12px, 3vw, 32px) clamp(14px, 3vw, 24px) 80px',
         color: 'var(--text-primary)',
         transition: 'all 0.3s ease',
       }}
     >
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-      <div style={{ maxWidth: 1180, margin: '0 auto', position: 'relative' }}>
+      <div className="home-page-inner" style={{ maxWidth: 1180, margin: '0 auto', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 10, left: '-6%', width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(249, 115, 22, 0.14), transparent 70%)', filter: 'blur(10px)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: 360, right: '-8%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.14), transparent 70%)', filter: 'blur(12px)', pointerEvents: 'none' }} />
         <section
@@ -468,7 +469,7 @@ export default function Home() {
                   borderTop: '1px solid rgba(255,255,255,0.1)',
                   paddingTop: 20,
                   maxWidth: 430,
-                  flexWrap: 'wrap',
+                  flexWrap: 'nowrap',
                 }}
               >
                 {[
@@ -526,6 +527,7 @@ export default function Home() {
 
         <section
           ref={progressRef}
+          className="home-progress-section"
           style={{
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 24,
@@ -575,7 +577,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
+          <div className="home-progress-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
             {topics.map((topic) => {
               const masteredCount = progress[topic.key] || 0;
               const percent = topic.totalCount ? Math.round((masteredCount / topic.totalCount) * 100) : 0;
@@ -599,7 +601,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="library">
+        <section id="library" className="home-library-section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16, marginBottom: 18 }}>
             <div>
               <div style={{ fontSize: 12, color: 'var(--text-accent)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.3, marginBottom: 8 }}>Library</div>
@@ -610,7 +612,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div ref={libraryRef} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 20 }}>
+          <div ref={libraryRef} className="home-library-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 20 }}>
             {topics.map((topic) => {
               const masteredCount = progress[topic.key] || 0;
               const percent = topic.totalCount ? Math.round((masteredCount / topic.totalCount) * 100) : 0;

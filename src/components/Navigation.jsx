@@ -53,9 +53,10 @@ const Navigation = () => {
       boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
       transition: "all 0.3s ease"
     }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div className="app-nav-inner" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <Link 
           to="/" 
+          className="app-nav-brand"
           style={{ 
             fontFamily: "'DM Sans', sans-serif",
             fontSize: 18, 
@@ -75,17 +76,18 @@ const Navigation = () => {
           <img
             src={heapnotesLogo}
             alt="HeapNotes"
+            className="app-nav-logo"
             style={{ height: 36, width: 'auto', flexShrink: 0 }}
           />
-          <span style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.1 }}>
+          <span className="app-nav-brand-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.1 }}>
             <span>HeapNotes</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: 0 }}>Developer revision notes</span>
+            <span className="app-nav-brand-sub" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: 0 }}>Developer revision notes</span>
           </span>
         </Link>
         
         {/* Search Bar & Theme Switcher */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, justifyContent: "flex-end", maxWidth: 600, minWidth: 0, flexWrap: "wrap" }}>
-          <div ref={searchRef} style={{ position: "relative", width: "100%", maxWidth: 380, minWidth: "min(100%, 240px)" }}>
+        <div className="app-nav-actions" style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, justifyContent: "flex-end", maxWidth: 600, minWidth: 0, flexWrap: "wrap" }}>
+          <div ref={searchRef} className="app-nav-search" style={{ position: "relative", width: "100%", maxWidth: 380, minWidth: "min(100%, 240px)" }}>
             <input
               value={searchQuery}
               onChange={(e) => {

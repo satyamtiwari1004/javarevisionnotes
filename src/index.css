@@ -177,37 +177,170 @@ code {
 @media (max-width: 1024px) {
   .heap-hero-grid {
     grid-template-columns: 1fr;
-    gap: 28px;
+    gap: 24px;
   }
 
   .heap-code-wrap {
-    justify-content: center;
-  }
-
-  .heap-code-card {
-    margin-left: 0;
-    margin-top: 0;
-    max-width: 460px;
-    transform: rotate(-2deg);
+    display: none;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .home-page-shell {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .home-page-inner {
+    max-width: none !important;
+  }
+
+  .app-nav-inner {
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .app-nav-brand {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .app-nav-logo {
+    height: 32px !important;
+  }
+
+  .app-nav-brand-copy {
+    min-width: 0;
+    align-items: center;
+  }
+
+  .app-nav-brand-sub {
+    font-size: 10px !important;
+  }
+
+  .app-nav-actions {
+    width: 100%;
+    max-width: none !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .app-nav-search {
+    flex: 1 1 auto;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .heap-hero-grid {
+    gap: 16px;
+  }
+
+  .heap-hero-grid > div:first-child {
+    text-align: center;
+  }
+
+  .heap-hero-grid > div:first-child > div:first-child {
+    justify-content: center;
+  }
+
   .heap-hero-heading {
-    font-size: clamp(32px, 9vw, 46px) !important;
+    font-size: clamp(30px, 9vw, 42px) !important;
+    line-height: 1.08 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 
   .heap-hero-sub {
     font-size: 14px !important;
+    max-width: none !important;
+    margin: 0 auto 20px !important;
+  }
+
+  .heap-hero-ctas {
+    margin-bottom: 20px !important;
+    justify-content: center;
+  }
+
+  .heap-hero-ctas a {
+    width: 100%;
+    text-align: center;
   }
 
   .heap-hero-stats {
-    max-width: none !important;
-    row-gap: 12px;
+    max-width: 100% !important;
+    width: 100%;
+    flex-wrap: nowrap !important;
+    justify-content: space-between;
+    row-gap: 0;
+    padding-top: 16px !important;
+    text-align: center;
   }
 
-  .heap-code-card {
-    transform: none;
+  .home-progress-section,
+  .home-library-section {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .home-progress-section {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+
+  .home-progress-grid,
+  .home-library-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-nav-inner {
+    gap: 10px !important;
+  }
+
+  .heap-glow {
+    width: 420px;
+    height: 420px;
+    top: -110px;
+    right: -120px;
+  }
+
+  .heap-hero-heading {
+    font-size: clamp(28px, 10vw, 38px) !important;
+  }
+
+  .heap-hero-stats > div {
+    width: auto !important;
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .heap-hero-stats > div > div:first-child {
+    padding: 0 10px !important;
+    min-width: 0 !important;
+    text-align: center;
+  }
+
+  .heap-hero-stats > div:first-child > div:first-child {
+    padding-left: 0 !important;
+  }
+
+  .heap-hero-stats > div:last-child > div:first-child {
+    padding-right: 0 !important;
+  }
+
+  .heap-hero-stats > div > div:last-child {
+    display: block !important;
+    width: 1px;
+    height: 36px;
+  }
+
+  .heap-hero-stats > div:last-child > div:last-child {
+    display: none !important;
   }
 }
 
