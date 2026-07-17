@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import heapnotesLogo from '/heapnotes-logo.svg';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -21,6 +22,8 @@ export default function Home() {
   const { isDark } = useTheme();
   const heroRef = useRef(null);
   const statsRef = useRef(null);
+  const codeCardRef = useRef(null);
+  const codeWrapRef = useRef(null);
   const progressRef = useRef(null);
   const libraryRef = useRef(null);
 
@@ -149,19 +152,72 @@ export default function Home() {
   }, [topics]);
 
   useEffect(() => {
+    let handleMove;
+    let handleLeave;
+    let wrap;
+
     const ctx = gsap.context(() => {
-      // Hero animation
       if (heroRef.current) {
-        gsap.from(heroRef.current.children, {
-          y: 50,
+        gsap.from(heroRef.current.querySelectorAll('.heap-hero-badge, .heap-hero-heading, .heap-hero-sub, .heap-hero-ctas, .heap-hero-stats'), {
           opacity: 0,
-          duration: 0.8,
-          stagger: 0.15,
+          y: 18,
+          duration: 0.55,
+          stagger: 0.12,
           ease: 'power3.out'
         });
       }
 
-      // Stats boxes animation
+      if (codeCardRef.current) {
+        gsap.set(codeCardRef.current, { transformPerspective: 1000 });
+        gsap.fromTo(
+          codeCardRef.current,
+          {
+            opacity: 0,
+            y: 30,
+            rotate: 8,
+          },
+          {
+            opacity: 1,
+            y: 0,
+            rotate: -3,
+            duration: 0.85,
+            ease: 'power3.out',
+            delay: 0.2
+          }
+        );
+      }
+
+      if (codeWrapRef.current && codeCardRef.current) {
+        wrap = codeWrapRef.current;
+        const card = codeCardRef.current;
+
+        handleMove = (event) => {
+          const rect = wrap.getBoundingClientRect();
+          const px = (event.clientX - rect.left) / rect.width - 0.5;
+          const py = (event.clientY - rect.top) / rect.height - 0.5;
+          gsap.to(card, {
+            rotateY: px * 10,
+            rotateX: -py * 8,
+            rotate: -3 + px * 2,
+            duration: 0.5,
+            ease: 'power2.out'
+          });
+        };
+
+        handleLeave = () => {
+          gsap.to(card, {
+            rotateY: 0,
+            rotateX: 0,
+            rotate: window.innerWidth > 640 ? -3 : 0,
+            duration: 0.6,
+            ease: 'power3.out'
+          });
+        };
+
+        wrap.addEventListener('mousemove', handleMove);
+        wrap.addEventListener('mouseleave', handleLeave);
+      }
+
       if (statsRef.current) {
         gsap.from(statsRef.current.children, {
           scale: 0.8,
@@ -173,7 +229,6 @@ export default function Home() {
         });
       }
 
-      // Progress section animation
       if (progressRef.current) {
         gsap.from(progressRef.current, {
           y: 40,
@@ -188,7 +243,6 @@ export default function Home() {
         });
       }
 
-      // Library grid animation
       if (libraryRef.current) {
         gsap.from(libraryRef.current.children, {
           y: 40,
@@ -206,6 +260,8 @@ export default function Home() {
     });
 
     return () => {
+      if (wrap && handleMove) wrap.removeEventListener('mousemove', handleMove);
+      if (wrap && handleLeave) wrap.removeEventListener('mouseleave', handleLeave);
       ctx.revert();
       ScrollTrigger.getAll().forEach(st => st.kill());
     };
@@ -236,28 +292,26 @@ export default function Home() {
   };
 
   const syntax = {
-    annotation: isDark ? '#fda4af' : '#be123c',
-    keyword: isDark ? '#93c5fd' : '#1d4ed8',
-    type: isDark ? '#c4b5fd' : '#6d28d9',
-    method: isDark ? '#86efac' : '#15803d',
-    string: isDark ? '#fcd34d' : '#b45309',
-    comment: isDark ? '#94a3b8' : '#64748b',
-    plain: isDark ? '#e5eefc' : '#0f172a',
+    annotation: isDark ? '#fb923c' : '#ea580c',
+    keyword: isDark ? '#c4b5fd' : '#7c3aed',
+    type: isDark ? '#93c5fd' : '#2563eb',
+    method: isDark ? '#fcd34d' : '#ca8a04',
+    string: isDark ? '#4ade80' : '#16a34a',
+    comment: isDark ? '#64748b' : '#94a3b8',
+    plain: isDark ? '#e2e8f0' : '#0f172a',
   };
 
   const heroCode = [
-    [{ text: '// Boot the study workspace', color: syntax.comment }],
+    [{ text: '// boot the study workspace', color: syntax.comment }],
     [{ text: '@SpringBootApplication', color: syntax.annotation }],
     [
-      { text: 'public', color: syntax.keyword },
-      { text: ' class ', color: syntax.plain },
+      { text: 'public class', color: syntax.keyword },
+      { text: ' ', color: syntax.plain },
       { text: 'HeroSection', color: syntax.type },
       { text: ' {', color: syntax.plain },
     ],
     [
-      { text: '    public', color: syntax.keyword },
-      { text: ' static ', color: syntax.keyword },
-      { text: 'void', color: syntax.keyword },
+      { text: '    public static void', color: syntax.keyword },
       { text: ' ', color: syntax.plain },
       { text: 'main', color: syntax.method },
       { text: '(String[] args) {', color: syntax.plain },
@@ -265,16 +319,16 @@ export default function Home() {
     [
       { text: '        System.out.println', color: syntax.method },
       { text: '(', color: syntax.plain },
-      { text: '"Java Learning Hub"', color: syntax.string },
+      { text: '"HeapNotes"', color: syntax.string },
       { text: ');', color: syntax.plain },
     ],
-    [
-      { text: '        SpringApplication', color: syntax.type },
-      { text: '.', color: syntax.plain },
-      { text: 'run', color: syntax.method },
-      { text: '(HeroSection.class, args);', color: syntax.plain },
-    ],
     [{ text: '    }', color: syntax.plain }],
+    [
+      { text: '    SpringApplication.run', color: syntax.method },
+      { text: '(HeroSection.', color: syntax.plain },
+      { text: 'class', color: syntax.type },
+      { text: ', args);', color: syntax.plain },
+    ],
     [{ text: '}', color: syntax.plain }],
   ];
 
@@ -299,213 +353,171 @@ export default function Home() {
           style={{
             position: 'relative',
             overflow: 'visible',
-            padding: 'clamp(8px, 1.5vw, 16px) 0 clamp(10px, 2vw, 18px)',
+            padding: 'clamp(20px, 4vw, 44px) 0 clamp(16px, 2vw, 22px)',
             marginBottom: 12,
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              inset: '-4% -4% 0 -4%',
-              background: isDark
-                ? 'radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 32%), radial-gradient(circle at bottom left, rgba(99, 102, 241, 0.16), transparent 24%), linear-gradient(135deg, rgba(249, 115, 22, 0.08), transparent 44%)'
-                : 'radial-gradient(circle at top right, rgba(14, 165, 233, 0.10), transparent 35%), radial-gradient(circle at bottom left, rgba(99, 102, 241, 0.08), transparent 28%), linear-gradient(135deg, rgba(249, 115, 22, 0.08), transparent 44%)',
-              pointerEvents: 'none',
-              filter: 'blur(10px)',
-            }}
-          />
+          <div className="heap-glow" />
 
-          <div className="hero-shell" style={{ position: 'relative' }}>
-            <div className="hero-copy" style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.38)', marginBottom: 18, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-                <span style={{ width: 24, height: 24, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #38bdf8, #6366f1)', color: '#fff', fontSize: 13 }}>⚡</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                  Java Learning Hub
-                </span>
+          <div className="heap-hero-grid">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+                <img src={heapnotesLogo} alt="HeapNotes" style={{ height: 34, width: 'auto' }} />
+                <div
+                  className="heap-hero-badge"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
+                    fontSize: 11,
+                    letterSpacing: 0.8,
+                    color: isDark ? '#93c5fd' : '#2563eb',
+                    background: isDark ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.08)',
+                    border: isDark ? '1px solid rgba(59,130,246,0.22)' : '1px solid rgba(59,130,246,0.18)',
+                    borderRadius: 999,
+                    padding: '6px 12px',
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: isDark ? '#60a5fa' : '#3b82f6', display: 'inline-block' }} />
+                  HEAPNOTES · {overallStats.total} TOPICS
+                </div>
               </div>
 
-              <h1 style={{ fontSize: 'clamp(28px, 5vw, 48px)', lineHeight: 1.02, letterSpacing: '-1.2px', margin: '0 0 12px 0', color: 'var(--text-title)', maxWidth: 640 }}>
+              <h1
+                className="heap-hero-heading"
+                style={{
+                  fontSize: 'clamp(36px, 6vw, 64px)',
+                  fontWeight: 700,
+                  color: '#fff',
+                  lineHeight: 1.05,
+                  letterSpacing: '-0.03em',
+                  margin: '0 0 20px 0',
+                  maxWidth: 680,
+                }}
+              >
                 Revision notes for
                 <br />
-                <span style={{ color: 'var(--text-accent)' }}>serious Java prep.</span>
+                <span
+                  style={{
+                    background: 'linear-gradient(90deg, #60a5fa, #a78bfa)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
+                  serious Java prep.
+                </span>
               </h1>
 
-              <p style={{ maxWidth: 520, margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--text-secondary)' }}>
-                Learn faster. Revise smarter.
+              <p
+                className="heap-hero-sub"
+                style={{
+                  color: isDark ? '#94a3b8' : '#475569',
+                  fontSize: 15,
+                  lineHeight: 1.75,
+                  maxWidth: 460,
+                  margin: '0 0 32px 0',
+                }}
+              >
+                {overallStats.total} topics across Spring Boot, concurrency, Streams, Kafka and DSA — structured for interview revision, not scrolling.
               </p>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 20, marginBottom: 14 }}>
+              <div className="heap-hero-ctas" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 28 }}>
                 <Link
                   to="/java"
                   style={{
                     textDecoration: 'none',
-                    background: isDark ? 'rgba(56, 189, 248, 0.16)' : 'rgba(255,255,255,0.32)',
-                    color: 'var(--text-title)',
-                    padding: '12px 18px',
-                    borderRadius: 14,
-                    fontWeight: 700,
-                    border: '1px solid rgba(255,255,255,0.16)',
-                    backdropFilter: 'blur(14px)',
-                    WebkitBackdropFilter: 'blur(14px)',
-                    boxShadow: '0 12px 26px rgba(56, 189, 248, 0.14)',
+                    background: 'linear-gradient(90deg, #3b82f6, #7c3aed)',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    padding: '12px 20px',
+                    borderRadius: 12,
+                    boxShadow: '0 16px 36px rgba(30, 64, 175, 0.28)',
                   }}
                 >
-                  Open Spring Boot Notes
+                  Open Spring Boot notes →
                 </Link>
                 <a
                   href="#library"
                   style={{
                     textDecoration: 'none',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    color: 'var(--text-primary)',
-                    padding: '12px 18px',
-                    borderRadius: 14,
-                    fontWeight: 700,
-                    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.28)',
-                    backdropFilter: 'blur(14px)',
-                    WebkitBackdropFilter: 'blur(14px)',
-                    boxShadow: '0 10px 22px rgba(15, 23, 42, 0.08)',
+                    color: isDark ? '#cbd5e1' : '#334155',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    padding: '12px 20px',
+                    borderRadius: 12,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.5)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
                   }}
                 >
-                  Browse Library
+                  Browse library
                 </a>
               </div>
 
               <div
                 ref={statsRef}
-                className="hero-stat-row"
+                className="heap-hero-stats"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                  gap: 12,
-                  maxWidth: 520,
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  gap: 0,
+                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                  paddingTop: 20,
+                  maxWidth: 430,
+                  flexWrap: 'wrap',
                 }}
               >
                 {[
                   { label: 'Topics', value: overallStats.total },
-                  { label: 'Mastered', value: overallStats.mastered },
-                  { label: 'Progress', value: `${overallStats.percent}%` },
                   { label: 'Tracks', value: topics.length },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 16,
-                      padding: '12px 12px',
-                      background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.34)',
-                      backdropFilter: 'blur(14px)',
-                      WebkitBackdropFilter: 'blur(14px)',
-                    }}
-                  >
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 700 }}>
-                      {item.label}
+                  { label: 'Progress', value: `${overallStats.percent}%` },
+                ].map((item, index) => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ padding: index === 0 ? '0 24px 0 0' : '0 24px', minWidth: 92 }}>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>{item.value}</div>
+                      <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8', marginTop: 2 }}>{item.label}</div>
                     </div>
-                    <div style={{ fontSize: 'clamp(17px, 3.5vw, 22px)', fontWeight: 800, color: 'var(--text-title)' }}>{item.value}</div>
+                    {index < 2 && <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.1)' }} />}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="hero-editor-wrap">
-              <div
-                style={{
-                  borderRadius: 14,
-                  overflow: 'hidden',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  background: isDark ? 'rgba(9, 14, 24, 0.56)' : 'rgba(255,255,255,0.22)',
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  boxShadow: isDark
-                    ? '0 26px 80px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.08)'
-                    : '0 24px 70px rgba(148,163,184,0.28), inset 0 1px 0 rgba(255,255,255,0.55)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    padding: '12px 14px',
-                    borderBottom: '1px solid rgba(255,255,255,0.1)',
-                    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.16)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div ref={codeWrapRef} className="heap-code-wrap" style={{ perspective: '1000px' }}>
+              <div ref={codeCardRef} className="heap-code-card" style={{
+                background: isDark ? 'rgba(20,25,38,0.55)' : 'rgba(255,255,255,0.52)',
+                backdropFilter: 'blur(18px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(18px) saturate(140%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 20,
+                boxShadow: isDark ? '0 30px 60px rgba(0,0,0,0.36)' : '0 26px 52px rgba(148,163,184,0.22)',
+                overflow: 'hidden',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
                     {['#ff5f57', '#febc2e', '#28c840'].map((color) => (
-                      <span
-                        key={color}
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: '50%',
-                          background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,0.45), ${color} 65%)`,
-                          boxShadow: 'inset 0 -1px 1px rgba(0,0,0,0.22)',
-                          display: 'inline-block',
-                        }}
-                      />
+                      <span key={color} style={{ width: 12, height: 12, borderRadius: '50%', background: color, display: 'inline-block' }} />
                     ))}
                   </div>
-
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '7px 12px',
-                      borderRadius: 999,
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.3)',
-                      color: 'var(--text-primary)',
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>☕</span>
-                    <span>HeroSection.java</span>
+                  <div style={{ flex: 1 }} />
+                  <div style={{ fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace", fontSize: 11, color: isDark ? '#94a3b8' : '#475569', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '4px 8px' }}>
+                    ☕ HeroSection.java
                   </div>
-
-                  <div style={{ width: 44 }} />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '44px minmax(0, 1fr)', minHeight: 360 }}>
-                  <div
-                    style={{
-                      padding: '18px 10px 18px 0',
-                      textAlign: 'right',
-                      borderRight: '1px solid rgba(255,255,255,0.08)',
-                      background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.12)',
-                      color: isDark ? 'rgba(148,163,184,0.72)' : 'rgba(100,116,139,0.82)',
-                      fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
-                      fontSize: 12,
-                      lineHeight: 1.95,
-                    }}
-                  >
-                    {heroCode.map((_, index) => (
-                      <div key={index + 1}>{index + 1}</div>
-                    ))}
-                  </div>
-
-                  <div
-                    style={{
-                      padding: '18px 18px 18px 16px',
-                      fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
-                      fontSize: 12.5,
-                      lineHeight: 1.95,
-                      color: syntax.plain,
-                      background: isDark ? 'rgba(7,12,22,0.22)' : 'rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    {heroCode.map((parts, index) => (
-                      <div key={index} style={{ whiteSpace: 'pre-wrap' }}>
-                        {parts.map((part, partIndex) => (
-                          <span key={partIndex} style={{ color: part.color }}>{part.text}</span>
-                        ))}
-                        {index === heroCode.length - 1 && <span className="hero-cursor">|</span>}
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace", fontSize: 12.5, lineHeight: '24px', padding: '16px 20px' }}>
+                  {heroCode.map((parts, index) => (
+                    <div key={index} style={{ whiteSpace: 'pre-wrap' }}>
+                      {parts.map((part, partIndex) => (
+                        <span key={partIndex} style={{ color: part.color }}>{part.text}</span>
+                      ))}
+                      {index === heroCode.length - 1 && <span className="hero-cursor">▍</span>}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

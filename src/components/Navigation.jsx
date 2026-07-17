@@ -3,6 +3,7 @@ import { useSearch } from '../contexts/SearchContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import heapnotesLogo from '/heapnotes-logo.svg';
 
 const Navigation = () => {
   const { searchQuery, setSearchQuery, isSearchOpen, setIsSearchOpen, searchResults } = useSearch();
@@ -71,22 +72,14 @@ const Navigation = () => {
           onMouseEnter={e => e.currentTarget.style.opacity = 0.85}
           onMouseLeave={e => e.currentTarget.style.opacity = 1}
         >
-          <span style={{
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "linear-gradient(135deg, #38bdf8, #6366f1)",
-            color: "#fff",
-            boxShadow: "0 8px 20px rgba(56, 189, 248, 0.25)",
-            flexShrink: 0,
-            fontSize: 18
-          }}>⚡</span>
+          <img
+            src={heapnotesLogo}
+            alt="HeapNotes"
+            style={{ height: 36, width: 'auto', flexShrink: 0 }}
+          />
           <span style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.1 }}>
-            <span>Java Learning Hub</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: 0 }}>Revision Notes</span>
+            <span>HeapNotes</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: 0 }}>Developer revision notes</span>
           </span>
         </Link>
         
