@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import RevisionNotesLayout from './components/RevisionNotesLayout';
+
 
 const SECTIONS = [
   // ─────────────────────────────────────────────────────────────
@@ -1936,210 +1937,17 @@ const TAG_META = {
 };
 
 export default function KafkaReference() {
-  const [search, setSearch]       = useState("");
-  const [activeCat, setActiveCat] = useState("All");
-  const [expanded, setExpanded]   = useState({});
-  const [copied, setCopied]       = useState(null);
-
-  const categories  = ["All", ...SECTIONS.map(s => s.cat)];
-  const totalTopics = SECTIONS.reduce((s, sec) => s + sec.topics.length, 0);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return SECTIONS.map(section => {
-      if (activeCat !== "All" && section.cat !== activeCat) return null;
-      const topics = section.topics.filter(t =>
-        !q ||
-        t.n.toLowerCase().includes(q) ||
-        t.desc.toLowerCase().includes(q) ||
-        t.code.toLowerCase().includes(q) ||
-        t.tag.toLowerCase().includes(q)
-      );
-      if (!topics.length) return null;
-      return { ...section, topics };
-    }).filter(Boolean);
-  }, [search, activeCat]);
-
-  const toggle = (cat, n) => {
-    const key = `${cat}|${n}`;
-    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-  const isOpen = (cat, n) => !!expanded[`${cat}|${n}`];
-
-  const copy = (code, key) => {
-    navigator.clipboard?.writeText(code);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 1600);
-  };
-
   return (
-    <div style={{ 
-      fontFamily: "'DM Sans', sans-serif", 
-      background: "linear-gradient(135deg, #06080F 0%, #0D1120 50%, #06080F 100%)", 
-      minHeight: "100vh", 
-      paddingBottom: 60, 
-      color: "#c9d1d9"
-    }}>
-      <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-      {/* ── Hero ── */}
-      <div style={{ borderBottom: "1px solid #21262d", background: "#0d1117", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(#1f6feb08 1px,transparent 1px),linear-gradient(90deg,#1f6feb08 1px,transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: -120, right: -80, width: 420, height: 420, background: "radial-gradient(circle,#1f6feb18 0%,transparent 65%)", pointerEvents: "none" }} />
-
-        <div style={{ maxWidth: 920, margin: "0 auto", padding: "32px 20px 26px", position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            {["#f85149","#d29922","#3fb950"].map(c => (
-              <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
-            ))}
-            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#58a6ff", letterSpacing: 3, textTransform: "uppercase", fontWeight: 700, marginLeft: 6 }}>Apache Kafka</span>
-          </div>
-
-          <h1 style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 30, fontWeight: 800, color: "#f0f6fc", margin: "0 0 6px", letterSpacing: -1 }}>
-            Kafka <span style={{ color: "#58a6ff" }}>Theory</span> & Concepts
-          </h1>
-          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#8b949e", margin: "0 0 18px" }}>
-            {SECTIONS.length} modules · {totalTopics} topics — deep-dive on architecture, guarantees, streams, connect &amp; patterns
-          </p>
-
-          {/* Tag legend */}
-          <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-            {Object.entries(TAG_META).map(([tag, c]) => (
-              <span key={tag} style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:12, background:c.bg, color:c.text, border:`1px solid ${c.border}` }}>
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ maxWidth:980, margin:"0 auto", padding:"24px 24px 0" }}>
-
-        {/* ── Search ── */}
-        <div style={{ position:"relative", marginBottom:16 }}>
-          <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", color:"#334155", fontSize:16 }}>⌕</span>
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search concepts, config, code examples..."
-            style={{ width:"100%", boxSizing:"border-box", padding:"11px 36px", background:"#0D1117", border:"1px solid #1A2040", borderRadius:10, color:"#CBD5E1", fontFamily:"'Fira Code',monospace", fontSize:13, outline:"none", transition:"border-color .2s" }}
-            onFocus={e => e.target.style.borderColor="#A855F7"}
-            onBlur={e  => e.target.style.borderColor="#1A2040"}
-          />
-          {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"#475569", cursor:"pointer", fontSize:18, lineHeight:1 }}>×</button>}
-        </div>
-
-        {/* ── Category pills ── */}
-        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:28 }}>
-          {categories.map(cat => {
-            const sec    = SECTIONS.find(s => s.cat === cat);
-            const active = activeCat === cat;
-            return (
-              <button key={cat} onClick={() => setActiveCat(cat)}
-                style={{ padding:"5px 14px", borderRadius:20, fontSize:12, fontFamily:"'DM Sans',sans-serif", fontWeight:600, cursor:"pointer", border: active ? `1px solid ${sec?.color||"#A855F7"}` : "1px solid #1A2040", background: active ? "#0D1117" : "#06080F", color: active ? (sec?.color||"#A855F7") : "#475569", transition:"all .15s", display:"flex", alignItems:"center", gap:5 }}>
-                {sec && <span style={{ fontSize:13 }}>{sec.icon}</span>}
-                {cat}
-                {sec && <span style={{ fontSize:10, color:active?sec.color:"#334155" }}>({sec.topics.length})</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {filtered.length === 0 && (
-          <div style={{ textAlign:"center", color:"#475569", padding:"4rem", fontFamily:"'DM Sans',sans-serif" }}>No topics match your search.</div>
-        )}
-
-        {/* ── Sections ── */}
-        {filtered.map(section => (
-          <div key={section.cat} style={{ marginBottom:36 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, paddingBottom:10, borderBottom:"1px solid #0D1120" }}>
-              <span style={{ fontSize:22, lineHeight:1 }}>{section.icon}</span>
-              <div>
-                <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:17, fontWeight:700, color:section.color }}>{section.cat}</span>
-                <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"#475569", margin:"2px 0 0" }}>{section.desc}</p>
-              </div>
-              <div style={{ flex:1, height:1, background:"#0D1120" }} />
-              <span style={{ background:"#06080F", border:`1px solid ${section.color}40`, borderRadius:12, padding:"2px 10px", fontSize:11, color:section.color, fontFamily:"'DM Sans',sans-serif", fontWeight:700, flexShrink:0 }}>
-                {section.topics.length}
-              </span>
-            </div>
-
-            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {section.topics.map(topic => {
-                const open    = isOpen(section.cat, topic.n);
-                const copyKey = `${section.cat}|${topic.n}`;
-                const tagC    = TAG_META[topic.tag] || TAG_META.CONCEPT;
-
-                return (
-                  <div key={topic.n}
-                    style={{ background:"#0A0D18", border:`1px solid ${open?section.color+"40":"#0D1120"}`, borderRadius:10, overflow:"hidden", transition:"border-color .2s" }}>
-
-                    {/* Header */}
-                    <div onClick={() => toggle(section.cat, topic.n)}
-                      style={{ padding:"13px 16px", cursor:"pointer", display:"flex", alignItems:"flex-start", gap:12, userSelect:"none" }}
-                      onMouseEnter={e => e.currentTarget.style.background="#0D1117"}
-                      onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-
-                      <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:8, background:tagC.bg, color:tagC.text, border:`1px solid ${tagC.border}`, flexShrink:0, marginTop:2, letterSpacing:0.5 }}>
-                        {topic.tag}
-                      </span>
-
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontFamily:"'Fira Code',monospace", fontSize:13, fontWeight:600, color:"#E2E8F0" }}>{topic.n}</div>
-                        {!open && (
-                          <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"#475569", marginTop:3, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
-                            {topic.desc.split("\n\n")[0]}
-                          </div>
-                        )}
-                      </div>
-
-                      <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:700, color:open?section.color:"#334155", flexShrink:0 }}>
-                        {open ? "▲" : "▼"}
-                      </span>
-                    </div>
-
-                    {/* Expanded */}
-                    {open && (
-                      <div style={{ padding:"0 16px 18px 16px", borderTop:"1px solid #0D1120" }}>
-
-                        {/* Theory block */}
-                        <div style={{ background:"#06080F", border:"1px solid #0D1120", borderRadius:8, padding:"14px 16px", margin:"14px 0 14px" }}>
-                          {topic.desc.split("\n\n").map((para, i) => (
-                            <p key={i} style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color: para.match(/^[A-Z\s\/()]+:/) ? "#CBD5E1" : "#94A3B8", lineHeight:1.8, margin:i===0?"0 0 10px":"10px 0 0", fontWeight: para.match(/^[A-Z\s\/()]+:/) ? 600 : 400 }}>
-                              {para}
-                            </p>
-                          ))}
-                        </div>
-
-                        {/* Code block */}
-                        <div style={{ background:"#03050C", border:"1px solid #0D1120", borderRadius:8, overflow:"hidden" }}>
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 14px", borderBottom:"1px solid #0D1120", background:"#06080F" }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <div style={{ display:"flex", gap:5 }}>
-                                {["#EF4444","#F59E0B","#10B981"].map(c => (
-                                  <div key={c} style={{ width:8, height:8, borderRadius:"50%", background:c }} />
-                                ))}
-                              </div>
-                              <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:10, color:"#334155", textTransform:"uppercase", letterSpacing:2, fontWeight:600 }}>
-                                Config &amp; Java · {topic.tag}
-                              </span>
-                            </div>
-                            <button onClick={() => copy(topic.code, copyKey)}
-                              style={{ background:"none", border:`1px solid ${copied===copyKey?section.color:"#1A2040"}`, borderRadius:5, padding:"3px 10px", color:copied===copyKey?section.color:"#475569", cursor:"pointer", fontSize:11, fontFamily:"'DM Sans',sans-serif", fontWeight:600, transition:"all .15s" }}>
-                              {copied===copyKey ? "✓ copied!" : "copy"}
-                            </button>
-                          </div>
-                          <pre style={{ margin:0, padding:"16px", fontSize:11.5, lineHeight:1.75, color:"#CBD5E1", fontFamily:"'Fira Code',monospace", whiteSpace:"pre", overflowX:"auto" }}>
-                            {topic.code}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <RevisionNotesLayout
+      pageKey="kafka"
+      title="Kafka Theory & Concepts"
+      subtitle="Deep-dive on Apache Kafka architecture, guarantees, streams, connect, and patterns."
+      categoryIcon="📨"
+      categoryColor="#EF4444"
+      sections={SECTIONS}
+      tagMeta={TAG_META}
+    />
   );
 }
+
+export { SECTIONS };

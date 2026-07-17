@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom';
 import { useSearch } from '../contexts/SearchContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
 
 const Navigation = () => {
   const { searchQuery, setSearchQuery, isSearchOpen, setIsSearchOpen, searchResults } = useSearch();
+  const { isDark, toggleTheme } = useTheme();
   const searchRef = useRef(null);
+  const navRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -18,159 +22,244 @@ const Navigation = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSearchOpen]);
 
+  useEffect(() => {
+    if (navRef.current) {
+      gsap.fromTo(
+        navRef.current,
+        { opacity: 0 },
+        {
+          opacity: 1,
+          duration: 0.45,
+          ease: 'power2.out',
+          clearProps: 'opacity'
+        }
+      );
+    }
+  }, []);
+
   return (
-    <nav style={{ 
-      background: "linear-gradient(135deg, rgba(22, 27, 34, 0.8) 0%, rgba(13, 17, 23, 0.9) 100%)",
-      backdropFilter: "blur(12px)",
-      WebkitBackdropFilter: "blur(12px)",
-      borderBottom: "1px solid rgba(48, 54, 61, 0.5)",
-      padding: "16px 24px",
+    <nav ref={navRef} style={{ 
+      background: isDark 
+        ? 'rgba(17, 24, 39, 0.75)' 
+        : 'rgba(255,255,255,0.85)',
+      backdropFilter: "blur(16px)",
+      WebkitBackdropFilter: "blur(16px)",
+      borderBottom: "1px solid rgba(255,255,255,0.1)",
+      padding: "calc(22px + env(safe-area-inset-top, 0px)) clamp(16px, 3vw, 24px) 22px",
       position: "sticky",
       top: 0,
       zIndex: 100,
-      boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)"
+      boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+      transition: "all 0.3s ease"
     }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <Link 
           to="/" 
           style={{ 
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 20, 
-            fontWeight: 700, 
-            color: "#f0f6fc", 
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 18, 
+            fontWeight: 800, 
+            color: "var(--text-title)", 
             textDecoration: "none",
-            letterSpacing: "0.5px",
-            background: "linear-gradient(135deg, #58a6ff 0%, #06B6D4 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text"
+            letterSpacing: "-0.5px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            transition: "opacity 0.2s ease",
+            minWidth: 0
           }}
+          onMouseEnter={e => e.currentTarget.style.opacity = 0.85}
+          onMouseLeave={e => e.currentTarget.style.opacity = 1}
         >
-          ✨ Java Revision Notes
+          <span style={{
+            width: 36,
+            height: 36,
+            borderRadius: 12,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(135deg, #38bdf8, #6366f1)",
+            color: "#fff",
+            boxShadow: "0 8px 20px rgba(56, 189, 248, 0.25)",
+            flexShrink: 0,
+            fontSize: 18
+          }}>⚡</span>
+          <span style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.1 }}>
+            <span>Java Learning Hub</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: 0 }}>Revision Notes</span>
+          </span>
         </Link>
         
-        {/* Search Bar */}
-        <div ref={searchRef} style={{ position: "relative", maxWidth: 400, flex: 1, marginLeft: 32 }}>
-          <input
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setIsSearchOpen(true);
-            }}
-            onFocus={(e) => {
-              setIsSearchOpen(true);
-              e.target.style.borderColor = "#58a6ff";
-            }}
-            placeholder="Search all topics..."
-            style={{
-              width: "100%",
-              padding: "10px 16px 10px 40px",
-              background: "rgba(13, 17, 23, 0.8)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-              border: "1px solid rgba(48, 54, 61, 0.5)",
-              borderRadius: 8,
-              color: "#c9d1d9",
-              fontFamily: "'IBM Plex Sans', sans-serif",
+        {/* Search Bar & Theme Switcher */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, justifyContent: "flex-end", maxWidth: 600, minWidth: 0, flexWrap: "wrap" }}>
+          <div ref={searchRef} style={{ position: "relative", width: "100%", maxWidth: 380, minWidth: "min(100%, 240px)" }}>
+            <input
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchOpen(true);
+              }}
+              onFocus={(e) => {
+                setIsSearchOpen(true);
+                e.target.style.borderColor = "var(--text-accent)";
+                e.target.style.boxShadow = "0 0 0 2px rgba(56, 189, 248, 0.2)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--border-color)";
+                e.target.style.boxShadow = "none";
+              }}
+              placeholder="Search all topics..."
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "9px 16px 9px 36px",
+                background: isDark 
+                  ? 'rgba(11, 17, 30, 0.6)' 
+                  : 'rgba(255,255,255,0.8)',
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 10,
+                color: "var(--text-primary)",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 13,
+                outline: "none",
+                transition: "all 0.2s ease",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)"
+              }}
+            />
+            <span style={{ 
+              position: "absolute", 
+              left: 13, 
+              top: "50%", 
+              transform: "translateY(-50%)", 
+              color: "var(--text-secondary)", 
               fontSize: 14,
-              outline: "none",
-              transition: "all 0.3s ease"
-            }}
-          />
-          <span style={{ 
-            position: "absolute", 
-            left: 14, 
-            top: "50%", 
-            transform: "translateY(-50%)", 
-            color: "#58a6ff", 
-            fontSize: 14,
-            pointerEvents: "none"
-          }}>⌕</span>
-          
-          {/* Search Results Dropdown */}
-          {isSearchOpen && searchQuery && (
-            <div style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              right: 0,
-              marginTop: 8,
-              background: "rgba(22, 27, 34, 0.95)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              border: "1px solid rgba(48, 54, 61, 0.5)",
-              borderRadius: 8,
-              maxHeight: 500,
-              overflowY: "auto",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-              zIndex: 1000
-            }}>
-              {searchResults.length === 0 ? (
-                <div style={{ 
-                  padding: "20px", 
-                  color: "#8b949e", 
-                  fontFamily: "'IBM Plex Sans', sans-serif",
-                  fontSize: 13,
-                  textAlign: "center"
-                }}>
-                  No results found
-                </div>
-              ) : (
-                searchResults.map((result) => (
-                  <Link
-                    key={result.id}
-                    to={result.path}
-                    onClick={() => {
-                      setSearchQuery('');
-                      setIsSearchOpen(false);
-                    }}
-                    style={{
-                      display: "block",
-                      padding: "12px 16px",
-                      textDecoration: "none",
-                      color: "#c9d1d9",
-                      borderBottom: "1px solid rgba(48, 54, 61, 0.3)",
-                      transition: "background 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(33, 38, 45, 0.5)"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                      <span style={{ fontSize: 14 }}>{result.categoryIcon}</span>
-                      <span style={{ 
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+              pointerEvents: "none"
+            }}>⌕</span>
+            
+            {/* Search Results Dropdown */}
+            {isSearchOpen && searchQuery && (
+              <div style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                marginTop: 8,
+                background: isDark 
+                  ? 'rgba(17, 24, 39, 0.95)' 
+                  : 'rgba(255,255,255,0.95)',
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 12,
+                maxHeight: 400,
+                overflowY: "auto",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+                zIndex: 1000
+              }}>
+                {searchResults.length === 0 ? (
+                  <div style={{ 
+                    padding: "20px", 
+                    color: "var(--text-secondary)", 
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 13,
+                    textAlign: "center"
+                  }}>
+                    No results found
+                  </div>
+                ) : (
+                  searchResults.map((result) => (
+                    <Link
+                      key={result.id}
+                      to={result.path}
+                      onClick={() => {
+                        setSearchQuery('');
+                        setIsSearchOpen(false);
+                      }}
+                      style={{
+                        display: "block",
+                        padding: "12px 16px",
+                        textDecoration: "none",
+                        color: "var(--text-primary)",
+                        borderBottom: "1px solid var(--border-color)",
+                        transition: "background 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "var(--card-hover-bg)"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13 }}>{result.categoryIcon}</span>
+                        <span style={{ 
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 11,
+                          color: result.categoryColor || "var(--text-accent)",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px"
+                        }}>{result.category}</span>
+                        <span style={{ 
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 10,
+                          color: "var(--text-secondary)",
+                          marginLeft: "auto",
+                          background: "rgba(148, 163, 184, 0.15)",
+                          padding: "2px 6px",
+                          borderRadius: 4
+                        }}>{result.source}</span>
+                      </div>
+                      <div style={{ 
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: "var(--text-title)",
+                        marginBottom: 4
+                      }}>
+                        {result.topicName}
+                      </div>
+                      <div style={{ 
+                        fontFamily: "'DM Sans', sans-serif",
                         fontSize: 12,
-                        color: result.categoryColor,
-                        fontWeight: 600
-                      }}>{result.category}</span>
-                      <span style={{ 
-                        fontFamily: "'IBM Plex Sans', sans-serif",
-                        fontSize: 11,
-                        color: "#8b949e",
-                        marginLeft: "auto"
-                      }}>{result.source}</span>
-                    </div>
-                    <div style={{ 
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      marginBottom: 4
-                    }}>
-                      {result.topicName}
-                    </div>
-                    <div style={{ 
-                      fontFamily: "'IBM Plex Sans', sans-serif",
-                      fontSize: 12,
-                      color: "#8b949e",
-                      lineHeight: 1.5
-                    }}>
-                      {result.topicDesc}
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          )}
+                        color: "var(--text-secondary)",
+                        lineHeight: 1.5
+                      }}>
+                        {result.topicDesc}
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Theme Toggler Button */}
+          <button
+            onClick={toggleTheme}
+            style={{
+              background: isDark 
+                ? 'rgba(11, 17, 30, 0.6)' 
+                : 'rgba(255,255,255,0.8)',
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "var(--text-primary)",
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              transition: "all 0.2s ease",
+              outline: "none"
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "var(--border-hover)"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border-color)"}
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDark ? "☀️" : "🌙"}
+          </button>
         </div>
       </div>
     </nav>

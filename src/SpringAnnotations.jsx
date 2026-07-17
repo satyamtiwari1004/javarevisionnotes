@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import RevisionNotesLayout from './components/RevisionNotesLayout';
 
 // ─── Theory + desc + code for every annotation ───────────────
 const DATA = [
@@ -364,7 +364,6 @@ public List<Category> populateCategories() {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Application Bootstrap",
     color: "#3fb950",
@@ -475,7 +474,6 @@ public class SmtpEmailService implements EmailService {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Exception Handling",
     color: "#f85149",
@@ -554,7 +552,6 @@ public class UserController {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Environment & Config Values",
     color: "#d29922",
@@ -714,7 +711,6 @@ public RedisService redisService() { ... }`
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Model / DTO / Validation",
     color: "#58a6ff",
@@ -810,7 +806,6 @@ public class UserDto {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "ObjectMapper (Jackson)",
     color: "#3fb950",
@@ -850,7 +845,6 @@ public class JacksonConfig {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Service / Business Logic",
     color: "#3fb950",
@@ -1044,7 +1038,6 @@ public class ScheduledTasks {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Beans & Dependency Injection",
     color: "#a5d6ff",
@@ -1164,7 +1157,7 @@ Scoped proxy (proxyMode): When a shorter-scoped bean (request/prototype/session)
 public class ReportBuilder {
     private final List<String> lines = new ArrayList<>();
     public void addLine(String line) { lines.add(line); }
-    public String build() { return String.join("\\n", lines); }
+    public String build() { return String.join("\n", lines); }
 }
 
 // request-scoped — one per HTTP request
@@ -1229,7 +1222,6 @@ public class CacheWarmupService {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Caching",
     color: "#3fb950",
@@ -1298,7 +1290,6 @@ public class ProductService {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Repository / Spring Data",
     color: "#f85149",
@@ -1346,7 +1337,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Entity / JPA",
     color: "#58a6ff",
@@ -1408,7 +1398,6 @@ public class Order {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Projections (Spring Data)",
     color: "#a5d6ff",
@@ -1467,7 +1456,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Security",
     color: "#f85149",
@@ -1571,7 +1559,6 @@ public class UserController {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Configuration & DB Config",
     color: "#adbac7",
@@ -1633,7 +1620,6 @@ public class PrimaryDataSourceConfig {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Kafka / RabbitMQ",
     color: "#a5d6ff",
@@ -1756,7 +1742,6 @@ public class OrderConsumer {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Spring Test",
     color: "#d29922",
@@ -1819,7 +1804,6 @@ class UserControllerTest {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Actuator",
     color: "#3fb950",
@@ -1881,7 +1865,6 @@ public class ExternalApiHealthIndicator implements HealthIndicator {
       },
     ]
   },
-  // ─────────────────────────────────────────────────────────────
   {
     cat: "Lombok & Java Meta",
     color: "#adbac7",
@@ -1957,7 +1940,6 @@ public interface OrderProcessor {
   },
 ];
 
-// ─── colour helpers ───────────────────────────────────────────
 const SECTION_COLORS = {
   "Controller / Web MVC":          { accent: "#58a6ff", dim: "#0d1f3c" },
   "Application Bootstrap":         { accent: "#3fb950", dim: "#0d2216" },
@@ -1980,229 +1962,17 @@ const SECTION_COLORS = {
 };
 
 export default function SpringAnnotations() {
-  const [search, setSearch]       = useState("");
-  const [activeCat, setActiveCat] = useState("All");
-  const [expanded, setExpanded]   = useState({});
-  const [copied, setCopied]       = useState(null);
-  const [tab, setTab]             = useState({});   // "theory" | "code" per key
-
-  const categories  = ["All", ...DATA.map(d => d.cat)];
-  const totalAnns   = DATA.reduce((s, d) => s + d.anns.length, 0);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return DATA.map(section => {
-      if (activeCat !== "All" && section.cat !== activeCat) return null;
-      const anns = section.anns.filter(a =>
-        !q ||
-        a.n.toLowerCase().includes(q) ||
-        a.desc.toLowerCase().includes(q) ||
-        a.theory.toLowerCase().includes(q) ||
-        a.code.toLowerCase().includes(q)
-      );
-      if (!anns.length) return null;
-      return { ...section, anns };
-    }).filter(Boolean);
-  }, [search, activeCat]);
-
-  const toggle = (cat, n) => {
-    const key = `${cat}|${n}`;
-    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-    if (!tab[key]) setTab(prev => ({ ...prev, [key]: "theory" }));
-  };
-  const isOpen = (cat, n) => !!expanded[`${cat}|${n}`];
-
-  const getTab  = (cat, n) => tab[`${cat}|${n}`] || "theory";
-  const setATab = (cat, n, t) => setTab(prev => ({ ...prev, [`${cat}|${n}`]: t }));
-
-  const copy = (code, key) => {
-    navigator.clipboard?.writeText(code);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 1500);
-  };
-
   return (
-    <div style={{ 
-      fontFamily: "'DM Sans', sans-serif", 
-      background: "linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%)", 
-      minHeight: "100vh", 
-      paddingBottom: 48, 
-      color: "#c9d1d9"
-    }}>
-      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-      {/* ── Hero ── */}
-      <div style={{ borderBottom: "1px solid #21262d", background: "#0d1117", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(#1f6feb08 1px,transparent 1px),linear-gradient(90deg,#1f6feb08 1px,transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: -120, right: -80, width: 420, height: 420, background: "radial-gradient(circle,#1f6feb18 0%,transparent 65%)", pointerEvents: "none" }} />
-
-        <div style={{ maxWidth: 920, margin: "0 auto", padding: "32px 20px 26px", position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            {["#f85149","#d29922","#3fb950"].map(c => (
-              <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
-            ))}
-            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#58a6ff", letterSpacing: 3, textTransform: "uppercase", fontWeight: 700, marginLeft: 6 }}>Spring Boot</span>
-          </div>
-
-          <h1 style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 30, fontWeight: 800, color: "#f0f6fc", margin: "0 0 6px", letterSpacing: -1 }}>
-            Annotations <span style={{ color: "#58a6ff" }}>Reference</span>
-          </h1>
-          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#8b949e", margin: "0 0 18px" }}>
-            {DATA.length} categories · {totalAnns} annotations — theory explanation + working code example for each
-          </p>
-
-          {/* tab legend */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 20, background: "#161b22", border: "1px solid #30363d" }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#58a6ff" }} />
-              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#8b949e" }}>Theory tab — how it works under the hood</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 20, background: "#161b22", border: "1px solid #30363d" }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3fb950" }} />
-              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#8b949e" }}>Code tab — working example</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 920, margin: "0 auto", padding: "20px 20px 0" }}>
-
-        {/* ── Search ── */}
-        <div style={{ position: "relative", marginBottom: 16 }}>
-          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#58a6ff", fontSize: 15 }}>⌕</span>
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search annotations, theory, code..."
-            style={{ width: "100%", boxSizing: "border-box", padding: "10px 13px 10px 35px", background: "#161b22", border: "1px solid #30363d", borderRadius: 8, color: "#c9d1d9", fontFamily: "'JetBrains Mono',monospace", fontSize: 13, outline: "none", transition: "border-color .15s" }}
-            onFocus={e => e.target.style.borderColor = "#58a6ff"}
-            onBlur={e  => e.target.style.borderColor = "#30363d"}
-          />
-          {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 17 }}>×</button>}
-        </div>
-
-        {/* ── Category pills ── */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 24 }}>
-          {categories.map(cat => {
-            const sec    = DATA.find(d => d.cat === cat);
-            const colors = sec ? SECTION_COLORS[cat] : null;
-            const active = activeCat === cat;
-            return (
-              <button key={cat} onClick={() => setActiveCat(cat)}
-                style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontFamily: "'DM Sans',sans-serif", fontWeight: 600, cursor: "pointer", border: active ? `1px solid ${colors?.accent || "#58a6ff"}` : "1px solid #30363d", background: active ? (colors?.dim || "#0d1f3c") : "#161b22", color: active ? (colors?.accent || "#58a6ff") : "#8b949e", transition: "all .15s" }}>
-                {sec?.icon && <span style={{ marginRight: 4 }}>{sec.icon}</span>}
-                {cat}
-                {sec && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>({sec.anns.length})</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {filtered.length === 0 && (
-          <div style={{ textAlign: "center", color: "#8b949e", padding: "3rem", fontFamily: "'DM Sans',sans-serif" }}>
-            No annotations match your search.
-          </div>
-        )}
-
-        {/* ── Sections ── */}
-        {filtered.map(section => {
-          const colors = SECTION_COLORS[section.cat] || { accent: "#58a6ff", dim: "#0d1f3c" };
-          return (
-            <div key={section.cat} style={{ marginBottom: 28 }}>
-              {/* Section header */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${colors.accent}30` }}>
-                <span style={{ fontSize: 16 }}>{section.icon}</span>
-                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 700, color: colors.accent }}>{section.cat}</span>
-                <span style={{ marginLeft: "auto", background: colors.dim, border: `1px solid ${colors.accent}40`, borderRadius: 10, padding: "1px 9px", fontSize: 11, color: colors.accent, fontFamily: "'DM Sans',sans-serif", fontWeight: 600 }}>
-                  {section.anns.length}
-                </span>
-              </div>
-
-              {/* Annotations */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {section.anns.map(ann => {
-                  const open   = isOpen(section.cat, ann.n);
-                  const active = getTab(section.cat, ann.n);
-                  const cKey   = `${section.cat}|${ann.n}`;
-
-                  return (
-                    <div key={ann.n} style={{ background: "#161b22", border: `1px solid ${open ? colors.accent + "50" : "#21262d"}`, borderRadius: 8, overflow: "hidden", transition: "border-color .15s" }}>
-
-                      {/* Header row */}
-                      <div onClick={() => toggle(section.cat, ann.n)}
-                        style={{ padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 12, userSelect: "none" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#1c2128"}
-                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                        <span style={{ color: colors.accent, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 600, flexShrink: 0, paddingTop: 1 }}>{ann.n}</span>
-                        {!open && (
-                          <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#8b949e", lineHeight: 1.5, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {ann.desc}
-                          </span>
-                        )}
-                        <span style={{ marginLeft: "auto", color: colors.accent, fontSize: 13, flexShrink: 0, fontWeight: 700 }}>{open ? "▲" : "▼"}</span>
-                      </div>
-
-                      {/* Expanded panel */}
-                      {open && (
-                        <div style={{ borderTop: `1px solid ${colors.accent}20` }}>
-
-                          {/* Tab switcher */}
-                          <div style={{ display: "flex", borderBottom: "1px solid #21262d" }}>
-                            {[["theory", "📖 Theory", "#58a6ff"], ["code", "💻 Code", "#3fb950"]].map(([t, label, tc]) => (
-                              <button key={t} onClick={() => setATab(section.cat, ann.n, t)}
-                                style={{ flex: 1, padding: "9px 0", border: "none", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, transition: "all .15s", background: active === t ? "#21262d" : "transparent", color: active === t ? tc : "#8b949e", borderBottom: active === t ? `2px solid ${tc}` : "2px solid transparent" }}>
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Theory tab */}
-                          {active === "theory" && (
-                            <div style={{ padding: "16px 16px 18px", background: "#0d1117" }}>
-                              {ann.theory.split("\n\n").map((para, i) => {
-                                const isBold = /^[A-Z][A-Z0-9()/\s]+:/.test(para);
-                                return (
-                                  <p key={i} style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: isBold ? "#e6edf3" : "#8b949e", lineHeight: 1.85, margin: i === 0 ? "0 0 12px" : "12px 0 0", fontWeight: isBold ? 600 : 400 }}>
-                                    {para}
-                                  </p>
-                                );
-                              })}
-                              {/* Short desc as summary */}
-                              <div style={{ marginTop: 14, padding: "10px 14px", background: `${colors.accent}10`, border: `1px solid ${colors.accent}30`, borderRadius: 6 }}>
-                                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: colors.accent, fontWeight: 600 }}>Summary: </span>
-                                <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#8b949e" }}>{ann.desc}</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Code tab */}
-                          {active === "code" && (
-                            <div style={{ background: "#0d1117" }}>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", borderBottom: "1px solid #21262d" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <div style={{ display: "flex", gap: 5 }}>
-                                    {["#f85149","#d29922","#3fb950"].map(c => <div key={c} style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />)}
-                                  </div>
-                                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: "#8b949e", textTransform: "uppercase", letterSpacing: 2, fontWeight: 600 }}>Java</span>
-                                </div>
-                                <button onClick={() => copy(ann.code, cKey)}
-                                  style={{ background: "none", border: `1px solid ${copied === cKey ? "#3fb950" : "#30363d"}`, borderRadius: 4, padding: "2px 9px", color: copied === cKey ? "#3fb950" : "#8b949e", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans',sans-serif", fontWeight: 600, transition: "all .15s" }}>
-                                  {copied === cKey ? "✓ copied!" : "copy"}
-                                </button>
-                              </div>
-                              <pre style={{ margin: 0, padding: "14px", fontSize: 12, lineHeight: 1.7, color: "#e6edf3", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "pre", overflowX: "auto" }}>
-                                {ann.code}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <RevisionNotesLayout
+      pageKey="java"
+      title="SpringBoot Annotations Reference"
+      subtitle="Comprehensive guide to Spring Boot and Spring MVC annotations with working examples."
+      categoryIcon="☕"
+      categoryColor="#f97316"
+      sections={DATA}
+      tagMeta={SECTION_COLORS}
+    />
   );
 }
+
+export { DATA };
