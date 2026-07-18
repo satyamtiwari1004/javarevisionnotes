@@ -10,6 +10,15 @@ const SECTIONS = [
       {
         n: "Creating Threads — Thread class & Runnable",
         desc: "Two fundamental ways to create a thread: extend Thread class or implement Runnable. Runnable is preferred because Java allows only single inheritance — implementing Runnable keeps your class free to extend something else.",
+        theory: `What: A thread is an independent path of execution inside a Java process. You can create work for a thread either by extending the Thread class or by implementing Runnable and passing it to a Thread.
+
+Why: Multithreading lets you do multiple units of work concurrently, improving responsiveness and allowing CPU or I/O tasks to progress without blocking the entire application. Runnable is generally preferred because it separates the task from the thread mechanism and preserves inheritance flexibility.
+
+How: Define the work inside run(), construct a Thread, and call start(). start() asks the JVM to create a new call stack and schedule the task on a separate thread. If you call run() directly, no new thread is created and the code executes on the current thread.
+
+Why not: Do not create raw threads everywhere in production code when a thread pool or ExecutorService would manage resources better. Extending Thread is also less flexible because Java supports single inheritance only.
+
+When: Use direct Thread or Runnable examples to understand thread fundamentals, create quick prototypes, or run simple background work. For larger systems, prefer ExecutorService for lifecycle and pooling control.`,
         code: `// ── Way 1: Extend Thread ──────────────────────────────────
 class MyThread extends Thread {
     private final String taskName;
@@ -63,6 +72,15 @@ public class Main {
       {
         n: "Runnable vs Callable — Key Differences",
         desc: "Runnable is the older interface for tasks that don't return a value. Callable (introduced in Java 5) is for tasks that return a result and can throw checked exceptions. Callable is used with ExecutorService's submit() which returns a Future for retrieving the result.",
+        theory: `What: Runnable represents a task that performs work and returns nothing. Callable represents a task that returns a result and is allowed to throw checked exceptions.
+
+Why: This distinction exists because many concurrent tasks are fire-and-forget, while others need to produce a computed value, status, or failure that the caller can inspect later.
+
+How: Use Runnable with Thread or ExecutorService.execute() when no result is needed. Use Callable with ExecutorService.submit() when you want a Future, need a return value, or want exception propagation through Future.get().
+
+Why not: Do not use Callable for every task if you never use the result, because it adds extra coordination overhead. Likewise, do not use Runnable when the caller must know success, failure, or output.
+
+When: Use Runnable for logging, event dispatch, background cleanup, or independent side effects. Use Callable for parallel computations, remote fetches, batched processing, or any task where the outcome matters to later logic.`,
         code: `// ── Runnable — no return value, no checked exceptions ───────
 Runnable task = () -> {
     System.out.println("Running task");
@@ -121,6 +139,15 @@ executor.shutdown();`
       {
         n: "wait() vs sleep() — Key Differences",
         desc: "wait() is an Object method used for inter-thread communication — releases the lock and puts thread in WAITING state until notify/notifyAll. sleep() is a Thread method that pauses execution but holds the lock — used for timing, not coordination.",
+        theory: `What: wait() pauses a thread as part of monitor-based coordination and releases the object's monitor while waiting. sleep() pauses a thread for a time duration but does not release any lock the thread currently holds.
+
+Why: Java provides both because coordination and delay are different problems. wait() exists for producer-consumer style communication between threads, while sleep() exists for timing, retry pauses, throttling, or demonstration delays.
+
+How: Call wait() only while holding the object's monitor, usually inside synchronized code and usually inside a while loop that rechecks the condition after wake-up. Call Thread.sleep() with a timeout when you simply want the current thread to pause for a known duration.
+
+Why not: Do not use sleep() to coordinate thread communication because it is unreliable and wastes time guessing about scheduling. Do not use wait() outside proper condition checks, because spurious wakeups and missed notifications can break logic.
+
+When: Use wait()/notifyAll() for classic monitor-based coordination when threads must wait for shared state to change. Use sleep() when the only requirement is timed delay, pacing, or backoff.`,
         code: `// ── wait() — releases lock, waits for notification ─────────────
 class SharedResource {
     private boolean ready = false;
@@ -189,6 +216,15 @@ class BoundedBuffer<T> {
       {
         n: "synchronized Method vs Block — When to Use Which",
         desc: "synchronized method locks the entire object instance (or class for static methods). synchronized block locks only a specific object, allowing finer-grained control and better performance by minimizing lock contention.",
+        theory: `What: A synchronized method automatically acquires the monitor of the current object, or the Class object for static methods. A synchronized block lets you choose exactly which object to lock and how much code should be inside the critical section.
+
+Why: Both forms exist because thread safety often needs locking, but different code paths benefit from different lock scope. Narrower locking reduces contention and usually improves throughput.
+
+How: Use a synchronized method when the whole method operates on shared mutable state and the simplicity is worth it. Use a synchronized block when only a small part of the method needs protection or when you want a dedicated private lock object instead of locking on this.
+
+Why not: Avoid broad synchronization when only a few lines actually need protection, because holding locks too long reduces concurrency and can increase deadlock risk. Also avoid locking on publicly accessible objects where outside code might interfere.
+
+When: Use synchronized methods for simple, easy-to-read state protection. Use synchronized blocks in performance-sensitive code, when minimizing lock scope matters, or when designing safer encapsulated locking with private lock objects.`,
         code: `// ── synchronized method — locks entire object instance ───────
 class Counter {
     private int count = 0;
@@ -260,6 +296,15 @@ class PerformanceDemo {
       {
         n: "volatile Keyword — Visibility Guarantees",
         desc: "volatile ensures visibility of changes to variables across threads — reads always see the most recent write. It prevents CPU cache inconsistencies but doesn't provide atomicity for compound actions (like increment). Use for flags, status variables, not for counters.",
+        theory: `What: volatile is a Java keyword that tells the JVM that reads and writes to a variable must be visible across threads immediately, instead of allowing one thread to keep a stale cached copy.
+
+Why: In multithreaded code, one thread may update a variable while another thread keeps reading an outdated value from CPU cache or re-ordered memory operations. volatile establishes a visibility guarantee and certain ordering guarantees so changes become observable predictably.
+
+How: Mark a shared field as volatile when writes from one thread must be seen quickly by other threads and the operation is a simple read or write. The JVM inserts the memory barriers needed so reads come from main memory visibility rules rather than stale thread-local cache effects.
+
+Why not: Do not use volatile for compound operations like count++, check-then-act logic, or any workflow that needs atomic read-modify-write semantics. volatile does not make a sequence of steps thread-safe.
+
+When: Use volatile for stop flags, initialization flags, status markers, configuration switches, and similar state variables where one thread writes and others observe. Use synchronized, locks, or atomic classes when correctness needs more than visibility.`,
         code: `// ── Without volatile — thread may not see updated value ───────
 class WithoutVolatile {
     private boolean running = true;  // cached per thread
@@ -323,6 +368,15 @@ class AtomicCounter {
       {
         n: "ThreadLocal — Thread-Specific Storage",
         desc: "ThreadLocal provides thread-local variables — each thread has its own independently initialized copy. Useful for per-thread context (user ID, database connection, transaction) without passing through method call chains.",
+        theory: `What: ThreadLocal is a mechanism that gives each thread its own isolated value for the same variable reference. Threads do not share the stored value even though they access the same ThreadLocal object.
+
+Why: Sometimes contextual data belongs to the current thread of execution, such as request metadata, authentication context, trace IDs, or formatter instances. Passing that data through every method call is noisy, so ThreadLocal provides a per-thread storage slot.
+
+How: Create a ThreadLocal, call set() to store data for the current thread, get() to read it later in the same thread, and remove() when the work finishes. Each thread sees only its own value.
+
+Why not: Do not treat ThreadLocal as a general-purpose shared state solution. It can hide data flow, make debugging harder, and cause memory leaks if values are not cleared in thread pools where worker threads are reused.
+
+When: Use ThreadLocal for request-scoped or thread-scoped context in controlled infrastructure code, especially filters, interceptors, tracing, or legacy APIs that cannot easily receive the context explicitly. Always clean it up in finally blocks.`,
         code: `// ── Basic ThreadLocal usage ───────────────────────────────────
 class ThreadLocalDemo {
     // Each thread gets its own copy of userContext
@@ -404,6 +458,15 @@ public class AuthFilter implements Filter {
       {
         n: "Thread Lifecycle & State Transitions",
         desc: "A Java thread passes through 6 states: NEW → RUNNABLE → (BLOCKED | WAITING | TIMED_WAITING) → TERMINATED. Understanding these transitions is critical for debugging deadlocks and performance issues.",
+        theory: `What: Every Java thread moves through a well-defined lifecycle: it is created, scheduled, may wait or block, and eventually finishes. The JVM exposes these states so developers can inspect behavior and reason about concurrency issues.
+
+Why: Understanding thread states helps explain why code appears stuck, slow, deadlocked, or idle. It also helps distinguish whether a thread is waiting for a lock, waiting for notification, sleeping on timeout, or actually running useful work.
+
+How: A newly created thread starts in NEW. Calling start() moves it toward RUNNABLE, where the scheduler may run it. It can enter BLOCKED when waiting for a monitor, WAITING when waiting indefinitely, TIMED_WAITING when waiting with a timeout, and TERMINATED when run() completes.
+
+Why not: Do not rely too heavily on instantaneous thread state snapshots for business logic because thread scheduling changes quickly and states can change between checks. State inspection is mainly a debugging and observability tool.
+
+When: Use lifecycle knowledge during debugging, thread dumps, deadlock analysis, performance tuning, and interview reasoning. It is especially useful when diagnosing synchronization bottlenecks or unexpected waiting behavior.`,
         code: `// Thread states: NEW → RUNNABLE → BLOCKED/WAITING/TIMED_WAITING → TERMINATED
 
 public class ThreadLifecycleDemo {
@@ -456,6 +519,15 @@ public class ThreadLifecycleDemo {
       {
         n: "Thread Methods — sleep, join, interrupt, yield",
         desc: "Core instance and static methods for thread coordination. sleep() pauses without releasing locks; join() makes caller wait; interrupt() signals a thread to stop; yield() hints the scheduler to switch.",
+        theory: `What: These are foundational thread control methods provided by the Java platform. They influence timing, waiting, cancellation, and scheduling hints between cooperating threads.
+
+Why: Real concurrent programs need basic coordination primitives. One thread may need to pause briefly, wait for another thread to finish, request cancellation, or politely hint that other runnable threads should get CPU time.
+
+How: Use sleep() to pause the current thread for a duration, join() to wait for another thread to finish, interrupt() to request cooperative cancellation, and yield() only as a scheduler hint with no correctness guarantee. interrupt() works best when the target thread regularly checks its interrupt status or handles InterruptedException properly.
+
+Why not: Do not build correctness around yield() because the scheduler may ignore it. Do not swallow interrupts casually, and do not misuse sleep() as a coordination strategy when proper signaling, locks, or queues are more reliable.
+
+When: Use sleep() for retry delays or demo pacing, join() when a later step truly depends on thread completion, interrupt() for graceful shutdown and cancellation, and yield() only in niche tuning or educational scenarios.`,
         code: `public class ThreadMethods {
 
     // ── sleep(ms) — pauses current thread, keeps locks ────────
@@ -521,6 +593,15 @@ public class ThreadLifecycleDemo {
       {
         n: "Daemon Threads",
         desc: "Daemon threads are background service threads (GC, JIT compiler). JVM exits when only daemon threads remain — they are abruptly killed. Never use daemon threads for I/O or database work.",
+        theory: `What: A daemon thread is a background support thread that does not keep the JVM alive. Once all user threads finish, the JVM can exit even if daemon threads are still running.
+
+Why: Some work is auxiliary rather than business-critical, such as housekeeping, background monitoring, or runtime services. The JVM needs a way to distinguish essential user work from supporting background activity.
+
+How: Call setDaemon(true) before starting the thread. After that, the JVM treats the thread as expendable during shutdown and does not wait for it to complete.
+
+Why not: Do not use daemon threads for tasks that must finish safely, flush data, release external resources, or complete transactions. They may be terminated abruptly when the JVM exits.
+
+When: Use daemon threads for background helpers such as heartbeats, cleanup loops, metrics sampling, or cache refreshers when losing the final iteration is acceptable. Use normal user threads for any important business or persistence work.`,
         code: `public class DaemonDemo {
 
     public static void main(String[] args) throws InterruptedException {
@@ -561,6 +642,15 @@ public class ThreadLifecycleDemo {
       {
         n: "synchronized — keyword, methods, blocks",
         desc: "The synchronized keyword acquires a monitor lock before entering a block or method, ensuring only one thread executes it at a time. Method-level locks the instance; block-level gives finer granularity.",
+        theory: `What: synchronized is Java's built-in monitor-based locking mechanism. It ensures mutual exclusion so that only one thread at a time can execute a protected block or method guarded by the same monitor.
+
+Why: Shared mutable state creates race conditions when multiple threads read and write it concurrently. synchronized protects critical sections and also provides visibility guarantees when entering and exiting the monitor.
+
+How: Use synchronized methods when the whole method needs exclusive access to instance or class state. Use synchronized blocks when only a small part of the method needs locking or when you want to lock on a dedicated private object.
+
+Why not: Do not synchronize more code than necessary, because wider lock scope increases contention and reduces throughput. Also avoid exposing lock objects publicly because unrelated code may accidentally interfere.
+
+When: Use synchronized for straightforward thread safety around counters, mutable objects, invariant protection, and small critical sections when the built-in monitor model is sufficient and simpler than explicit locks.`,
         code: `public class SynchronizationDemo {
 
     private int count = 0;
@@ -625,6 +715,15 @@ public class ThreadLifecycleDemo {
       {
         n: "volatile keyword",
         desc: "volatile guarantees visibility — all writes to a volatile field are immediately visible to other threads. It does NOT guarantee atomicity (i++ is still not thread-safe). Use for flags and single-variable state.",
+        theory: `What: volatile marks a field so reads and writes go through Java's visibility rules instead of relying on stale cached values. Every thread sees the latest write to that field.
+
+Why: Without visibility guarantees, one thread may continue acting on an outdated value even after another thread updates it. volatile is the lightweight solution when the problem is stale reads rather than multi-step atomicity.
+
+How: Declare the field as volatile and restrict usage to simple independent reads and writes, such as stop flags or status markers. The JVM then ensures ordering and visibility around accesses to that field.
+
+Why not: Do not assume volatile makes increments, compound checks, or multi-field invariants safe. It cannot replace locking or atomic classes when correctness depends on atomic multi-step behavior.
+
+When: Use volatile for shutdown flags, publication flags, state markers, and double-checked locking support. Use AtomicInteger, synchronized, or higher-level concurrency utilities when updates are compound or coordinated.`,
         code: `public class VolatileDemo {
 
     // ── Without volatile — other threads may see stale cached value ──
@@ -690,6 +789,15 @@ class Singleton {
       {
         n: "wait() / notify() / notifyAll()",
         desc: "Object methods for thread communication. A thread calls wait() inside a synchronized block to release the lock and sleep until another thread calls notify()/notifyAll() on the same object. Always call in a while loop to handle spurious wakeups.",
+        theory: `What: wait(), notify(), and notifyAll() are low-level monitor communication methods on Object. They allow threads sharing the same monitor to pause until a condition changes and then wake one or more waiting threads.
+
+Why: Mutual exclusion alone is not enough when threads must also coordinate state changes, such as waiting for buffer space, available items, or readiness of a shared resource.
+
+How: Enter synchronized code on the same lock object, check the condition in a while loop, call wait() to release the monitor and sleep, and call notifyAll() after changing the shared condition so waiting threads can re-check it.
+
+Why not: Do not use notify()/wait() casually without disciplined condition checks, because missed notifications, spurious wakeups, and wrong lock selection can create subtle bugs. In modern code, higher-level tools are often safer.
+
+When: Use these APIs when implementing classic monitor-based coordination patterns or when learning the foundations of concurrency. In production, prefer BlockingQueue, CountDownLatch, Semaphore, or other java.util.concurrent abstractions when they fit.`,
         code: `// Classic Producer-Consumer with wait/notify
 public class WaitNotifyDemo {
 
@@ -754,6 +862,15 @@ public class WaitNotifyDemo {
       {
         n: "Deadlock, Livelock & Starvation",
         desc: "Deadlock: two threads each hold a lock and wait for the other's lock — circular wait. Livelock: threads keep reacting to each other but make no progress. Starvation: a thread never gets CPU time because others keep getting priority.",
+        theory: `What: Deadlock, livelock, and starvation are different failure modes of concurrent systems. Deadlock means threads are permanently blocked waiting on each other. Livelock means threads remain active but never make progress. Starvation means a thread is perpetually denied fair access to CPU or locks.
+
+Why: Concurrency introduces scheduling and lock coordination problems that can break progress even when the code is logically correct in isolation. Recognizing these patterns is essential for debugging and designing robust systems.
+
+How: Deadlock often appears when threads acquire multiple locks in inconsistent order. Livelock appears when threads overreact to each other and repeatedly back off. Starvation appears when fairness is poor, priorities are skewed, or long-held locks keep excluding some thread indefinitely.
+
+Why not: Do not ignore progress guarantees while focusing only on mutual exclusion. Code can be thread-safe in the narrow sense yet still fail operationally because nobody completes useful work.
+
+When: Think about these issues whenever multiple locks, retries, priority differences, backoff strategies, or blocking coordination are involved. Prevent them with consistent lock ordering, timeouts, fairness-aware tools, minimal lock scope, and observability such as thread dumps or ThreadMXBean diagnostics.`,
         code: `// ── DEADLOCK example ───────────────────────────────────────
 public class DeadlockDemo {
 
@@ -824,6 +941,15 @@ public class DeadlockDemo {
       {
         n: "ReentrantLock — explicit locking",
         desc: "ReentrantLock is a more flexible alternative to synchronized. It supports try-lock (non-blocking attempt), timed lock, interruptible lock, and fairness policy. Always unlock in a finally block.",
+        theory: `What: ReentrantLock is an explicit mutual-exclusion lock from java.util.concurrent.locks. Like synchronized, it prevents concurrent execution of a critical section, but it also exposes richer lock-management APIs.
+
+Why: Some concurrent code needs features beyond the built-in synchronized keyword, such as timed acquisition, interruptible waiting, fairness options, or multiple condition variables.
+
+How: Create a ReentrantLock, call lock() or tryLock() before the critical section, and always unlock() in a finally block. Use lockInterruptibly() when waiting threads must remain cancellable, and Condition objects when you need structured wait/signal behavior.
+
+Why not: Do not replace every synchronized block with ReentrantLock by default. It is more verbose, easier to misuse, and forgetting unlock() can create severe bugs.
+
+When: Use ReentrantLock when you need advanced locking behavior, explicit cancellation, timed acquisition, fairness, or multiple conditions. For simple monitor-style protection, synchronized is often cleaner.`,
         code: `import java.util.concurrent.locks.*;
 
 public class ReentrantLockDemo {
@@ -909,6 +1035,15 @@ public class ReentrantLockDemo {
       {
         n: "ReadWriteLock — concurrent reads, exclusive writes",
         desc: "ReadWriteLock allows multiple threads to read simultaneously, but only one thread to write (and no reads during write). Perfect for read-heavy caches — massive throughput improvement over synchronized.",
+        theory: `What: ReadWriteLock separates access into shared read locks and exclusive write locks. Many readers can proceed together, but a writer gets exclusive access.
+
+Why: In read-heavy workloads, ordinary mutual exclusion blocks readers unnecessarily even when nobody is modifying data. Read-write locking improves throughput by allowing safe parallel reads.
+
+How: Acquire the read lock for operations that only inspect immutable or safely protected state, and acquire the write lock for modifications. Readers may proceed concurrently until a writer must update the protected data.
+
+Why not: Do not assume it is always faster than synchronized. If writes are frequent, lock upgrading is awkward, or critical sections are tiny, the extra complexity and lock coordination may outweigh the benefit.
+
+When: Use ReadWriteLock for caches, mostly-read configuration stores, lookup-heavy registries, or shared structures where reads dominate and write contention is relatively low. Consider StampedLock for optimistic-read use cases when you understand its tradeoffs.`,
         code: `import java.util.concurrent.locks.*;
 
 public class ReadWriteLockDemo {
@@ -988,6 +1123,15 @@ class StampedLockDemo {
       {
         n: "Semaphore, CountDownLatch, CyclicBarrier, Phaser",
         desc: "High-level coordination utilities. Semaphore limits concurrent access. CountDownLatch waits for N events. CyclicBarrier waits for N threads. Phaser is a flexible, reusable multi-phase barrier.",
+        theory: `What: These utilities are higher-level coordination primitives from java.util.concurrent. Each solves a specific orchestration problem: limiting concurrency, waiting for completion, synchronizing phases, or coordinating reusable barriers.
+
+Why: Low-level wait/notify is powerful but easy to misuse. These utilities encode common concurrency patterns directly, making coordination clearer, safer, and less error-prone.
+
+How: Use Semaphore to control access to a limited resource, CountDownLatch to wait for a fixed number of events, CyclicBarrier when a group of threads must meet before continuing, and Phaser when parties and phases are more dynamic.
+
+Why not: Do not choose them interchangeably without understanding the lifecycle. CountDownLatch cannot be reset, barriers can break if one participant fails, and semaphores are about permits rather than event completion.
+
+When: Use these utilities when coordinating worker pools, startup gates, batch processing phases, resource throttling, staged computations, integration tests, and any workflow where the concurrency pattern matches one of these abstractions naturally.`,
         code: `// ── Semaphore — limit concurrent access (e.g. DB connection pool) ──
 public class SemaphoreDemo {
 
@@ -1094,6 +1238,15 @@ public class PhaserDemo {
       {
         n: "Atomic Classes — lock-free thread safety",
         desc: "java.util.concurrent.atomic classes use CPU-level Compare-And-Swap (CAS) instructions — no locking, no blocking, faster than synchronized for single-variable updates.",
+        theory: `What: Atomic classes provide thread-safe operations on single variables using low-level compare-and-swap style CPU instructions instead of traditional blocking locks.
+
+Why: Many concurrent use cases only need safe updates to one variable, such as counters, flags, or references. Using full synchronization for these cases can add unnecessary blocking and contention.
+
+How: Use AtomicInteger, AtomicLong, AtomicBoolean, AtomicReference, and related types for independent state transitions. Methods like incrementAndGet(), compareAndSet(), and updateAndGet() perform atomic operations without explicit locks.
+
+Why not: Do not use atomic classes to manage complex multi-variable invariants unless the whole design truly fits lock-free patterns. Single atomic operations are safe, but coordinating multiple related fields still needs broader synchronization or redesign.
+
+When: Use atomics for counters, CAS-based initialization flags, lock-free reference swaps, metrics, and lightweight concurrent state transitions. Under very high contention for hot counters, LongAdder or LongAccumulator can outperform AtomicLong.`,
         code: `import java.util.concurrent.atomic.*;
 
 public class AtomicDemo {
@@ -1159,6 +1312,15 @@ public class AtomicDemo {
       {
         n: "Executors & ThreadPoolExecutor — the full picture",
         desc: "ExecutorService decouples task submission from thread management. ThreadPoolExecutor is the full-featured implementation with corePoolSize, maximumPoolSize, keepAliveTime, and a work queue. Factory methods like Executors.newFixedThreadPool() create common configurations.",
+        theory: `What: The executor framework separates task submission from thread creation and scheduling. ThreadPoolExecutor is the configurable engine underneath many executor services.
+
+Why: Creating raw threads per task is expensive, hard to tune, and difficult to manage at scale. Executors improve throughput, resource control, monitoring, and shutdown behavior through pooling and queueing.
+
+How: Submit Runnable or Callable tasks to an ExecutorService. Use ThreadPoolExecutor when you need explicit control over pool size, queue capacity, thread factory behavior, keep-alive time, and rejection policies.
+
+Why not: Do not rely blindly on convenience factory methods when workload shape matters, because some use unbounded queues or aggressive thread growth that can hide backpressure problems. Poor pool sizing can also create latency or resource exhaustion.
+
+When: Use executors for almost all production asynchronous work: web request offloading, background jobs, scheduled processing, batch pipelines, and parallel task execution. Reach for direct Thread usage mainly for learning, quick demos, or very narrow low-level cases.`,
         code: `import java.util.concurrent.*;
 
 public class ExecutorDemo {
@@ -1232,6 +1394,15 @@ public class ExecutorDemo {
       {
         n: "invokeAll & invokeAny — bulk task execution",
         desc: "invokeAll() submits all tasks, waits for ALL to complete, returns futures. invokeAny() submits all tasks, returns the FIRST successful result, cancels the rest. Both block the caller.",
+        theory: `What: invokeAll() and invokeAny() are bulk submission methods on ExecutorService for coordinating a collection of Callable tasks as a single operation.
+
+Why: Sometimes tasks naturally belong to a batch. You may need either every result before continuing, or just the first successful answer from multiple competing strategies.
+
+How: Use invokeAll() when every task must be submitted and the caller should block until all complete or time out. Use invokeAny() when multiple equivalent tasks race and only the earliest successful result matters; the framework cancels the rest.
+
+Why not: Do not use these methods if blocking the caller is undesirable, because both are synchronous from the caller's perspective. Also avoid invokeAny() if the non-winning tasks have side effects that must not be abandoned midway.
+
+When: Use invokeAll() for fixed batches such as parallel validation, fan-out querying, or independent computations whose full set of results is needed. Use invokeAny() for fastest-response wins patterns such as cache-vs-DB lookups or redundant service calls.`,
         code: `public class InvokeDemo {
 
     ExecutorService exec = Executors.newFixedThreadPool(4);
@@ -1271,6 +1442,15 @@ public class ExecutorDemo {
       {
         n: "CompletableFuture — async pipelines",
         desc: "CompletableFuture enables non-blocking async composition. Chain operations with thenApply (transform), thenCompose (flatMap), thenCombine (merge two futures), exceptionally (error handling), and allOf/anyOf (fan-out).",
+        theory: `What: CompletableFuture is a future plus a composition API for building asynchronous pipelines. It lets you transform results, combine stages, recover from failures, and coordinate multiple async operations without manual callback nesting.
+
+Why: Traditional Future gives only blocking retrieval, which is limiting for modern async workflows. CompletableFuture enables declarative chaining and better expression of parallel fan-out, merge, fallback, and continuation logic.
+
+How: Start tasks with supplyAsync() or runAsync(), then chain stages with methods like thenApply(), thenCompose(), thenCombine(), exceptionally(), handle(), allOf(), and anyOf(). Prefer non-blocking composition, and block only at application boundaries when necessary.
+
+Why not: Do not overuse CompletableFuture for simple synchronous logic or tiny local workflows where plain code is clearer. Also avoid mixing heavy blocking operations into the default common pool without thinking about thread starvation.
+
+When: Use CompletableFuture for service orchestration, parallel API calls, async enrichment pipelines, timeout/fallback flows, and non-blocking business workflows where multiple dependent or independent stages need composition.`,
         code: `import java.util.concurrent.*;
 
 public class CompletableFutureDemo {
@@ -1378,6 +1558,15 @@ public class CompletableFutureDemo {
       {
         n: "ScheduledExecutorService — delayed & periodic tasks",
         desc: "Replaces Timer and TimerTask (which have issues with exceptions killing the entire timer). Supports one-shot delayed execution and periodic scheduling with fixed-rate or fixed-delay semantics.",
+        theory: `What: ScheduledExecutorService is the standard Java scheduler for delayed and periodic task execution. It can run tasks once after a delay or repeatedly according to fixed-rate or fixed-delay semantics.
+
+Why: Applications often need recurring background work such as polling, cache refresh, cleanup, retries, or heartbeat tasks. This API replaces older Timer/TimerTask with a more robust thread-pool-based scheduler.
+
+How: Use schedule() for one-time delayed work, scheduleAtFixedRate() when you want to maintain a regular cadence from the start times, and scheduleWithFixedDelay() when each run should wait a fixed delay after the previous run completes.
+
+Why not: Do not use scheduled tasks for workloads that may pile up without bounds or for long-blocking operations without considering pool size and cancellation. Also avoid fixed-rate scheduling when task duration is unpredictable and overlap pressure matters.
+
+When: Use ScheduledExecutorService for recurring maintenance, monitoring, polling, backoff retries, delayed workflows, and controlled periodic jobs inside a JVM process. Use an external scheduler when durability, distributed coordination, or restart persistence is required.`,
         code: `public class ScheduledExecDemo {
 
     ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(3);
@@ -1439,6 +1628,15 @@ public class CompletableFutureDemo {
       {
         n: "ForkJoinPool — divide and conquer",
         desc: "ForkJoinPool is designed for divide-and-conquer recursive tasks. It uses work-stealing — idle threads steal tasks from busy threads' queues, maximizing CPU utilization. RecursiveTask returns a value; RecursiveAction has no return value.",
+        theory: `What: ForkJoinPool is a specialized executor for divide-and-conquer parallelism. It breaks big tasks into smaller subtasks and uses work-stealing so idle worker threads can help busy ones.
+
+Why: Some problems are naturally recursive and can be split into independent subproblems, such as sums, sorting, image processing, or tree traversals. ForkJoinPool is optimized for this style of CPU-bound parallel decomposition.
+
+How: Implement RecursiveTask when you need a result or RecursiveAction when you do not. In compute(), stop splitting below a threshold, otherwise fork subtasks, compute part locally, and join the remaining result.
+
+Why not: Do not use ForkJoinPool for blocking I/O-heavy tasks or overly tiny work units, because the pool is optimized for CPU-bound compute tasks and excessive task splitting adds overhead.
+
+When: Use ForkJoinPool for recursive parallel algorithms, large in-memory dataset processing, and compute-heavy divide-and-conquer workflows where work-stealing can improve CPU utilization meaningfully.`,
         code: `import java.util.concurrent.*;
 
 // ── RecursiveTask<V> — returns a value ────────────────────
@@ -1546,6 +1744,15 @@ public class ForkJoinDemo {
       {
         n: "Parallel Streams — ForkJoinPool under the hood",
         desc: "Parallel streams use ForkJoinPool.commonPool() internally. They are great for CPU-bound tasks on large collections but can hurt performance for I/O-bound work or small datasets.",
+        theory: `What: Parallel streams are the stream API's built-in way to process collection elements concurrently, usually by delegating execution to the ForkJoin common pool.
+
+Why: They provide an easy declarative path to data parallelism for computations that can be split across elements and combined safely without manually managing threads or executors.
+
+How: Switch from stream() to parallelStream() or call parallel() in a stream pipeline. Ensure operations are stateless, associative where required, and free of unsafe side effects so the framework can split and merge work correctly.
+
+Why not: Do not assume parallel is automatically faster. Small collections, blocking I/O, order-sensitive side effects, shared mutable state, or contention on the common pool can make performance worse or correctness fragile.
+
+When: Use parallel streams for large CPU-bound transformations, aggregations, and pure computations over collections where the work per element is meaningful and side effects are either absent or carefully controlled.`,
         code: `public class ParallelStreamDemo {
 
     // ── Basic parallel stream ──────────────────────────────────

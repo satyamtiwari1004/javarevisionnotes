@@ -16,6 +16,7 @@ import { SECTIONS as DSA_SECTIONS } from '../javadsa';
 import { SECTIONS as SQL_SECTIONS } from '../sqlquestion';
 import { SECTIONS as KAFKA_SECTIONS } from '../kafka_reference';
 import { SECTIONS as INTERVIEW_SECTIONS } from '../java_previous_interview';
+import { SECTIONS as REACT_INTERVIEW_SECTIONS } from '../reactinterview';
 import { SECTIONS as SYSTEM_DESIGN_SECTIONS } from '../systemdesign';
 
 export default function Home() {
@@ -24,8 +25,14 @@ export default function Home() {
   const statsRef = useRef(null);
   const codeCardRef = useRef(null);
   const codeWrapRef = useRef(null);
+  const copyLineRef = useRef(null);
+  const copyPillRef = useRef(null);
+  const fakeCursorRef = useRef(null);
+  const copiedToastRef = useRef(null);
   const progressRef = useRef(null);
   const libraryRef = useRef(null);
+  const statTopicsRef = useRef(null);
+  const statTracksRef = useRef(null);
 
   const topics = useMemo(() => [
     {
@@ -119,6 +126,16 @@ export default function Home() {
       totalCount: INTERVIEW_SECTIONS.reduce((acc, s) => acc + s.topics.length, 0)
     },
     {
+      title: 'React Interview',
+      description: 'Hooks, reconciliation, rendering, state, performance, and coding questions for frontend interviews.',
+      path: '/react-interview',
+      key: 'react-interview',
+      icon: '⚛️',
+      color: '#06B6D4',
+      eyebrow: 'Frontend',
+      totalCount: REACT_INTERVIEW_SECTIONS.reduce((acc, s) => acc + s.topics.length, 0)
+    },
+    {
       title: 'System Design',
       description: 'Scalability, consistency, caching, partitioning, CAP theorem, and architecture decisions.',
       path: '/system-design',
@@ -151,45 +168,89 @@ export default function Home() {
     return () => window.removeEventListener('storage', loadProgress);
   }, [topics]);
 
+  const overallStats = useMemo(() => {
+    let totalTopics = 0;
+    let totalMastered = 0;
+    topics.forEach((t) => {
+      totalTopics += t.totalCount;
+      totalMastered += progress[t.key] || 0;
+    });
+    return {
+      total: totalTopics,
+      mastered: totalMastered,
+      percent: totalTopics ? Math.round((totalMastered / totalTopics) * 100) : 0,
+    };
+  }, [progress, topics]);
+
   useEffect(() => {
     let handleMove;
     let handleLeave;
     let wrap;
+    let copyDemoTimeline;
 
     const ctx = gsap.context(() => {
       if (heroRef.current) {
-        gsap.from(heroRef.current.querySelectorAll('.heap-hero-badge, .heap-hero-heading, .heap-hero-sub, .heap-hero-ctas, .heap-hero-stats'), {
-          opacity: 0,
-          y: 18,
-          duration: 0.55,
-          stagger: 0.12,
-          ease: 'power3.out'
-        });
+        const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        tl.from(heroRef.current.querySelectorAll('.heap-hero-badge'), { opacity: 0, y: 14, duration: 0.5 })
+          .from(heroRef.current.querySelectorAll('.heap-hero-heading'), { opacity: 0, y: 22, duration: 0.6 }, '-=0.25')
+          .from(heroRef.current.querySelectorAll('.heap-hero-sub'), { opacity: 0, y: 16, duration: 0.5 }, '-=0.3')
+          .from(heroRef.current.querySelectorAll('.heap-step-chip, .heap-step-arrow'), { opacity: 0, x: -10, duration: 0.3, stagger: 0.08 }, '-=0.25')
+          .from(heroRef.current.querySelectorAll('.heap-hero-ctas, .heap-hero-note'), { opacity: 0, y: 16, duration: 0.5 }, '-=0.2')
+          .from(heroRef.current.querySelectorAll('.heap-hero-stats'), { opacity: 0, y: 16, duration: 0.5 }, '-=0.3');
+
+        if (codeCardRef.current) {
+          tl.from(codeCardRef.current, { opacity: 0, y: 30, rotate: 8, duration: 0.8 }, '-=0.7')
+            .to(codeCardRef.current, { rotate: -3, duration: 0.6, ease: 'power2.out' }, '-=0.2');
+        }
+
+        tl.from(heroRef.current.querySelectorAll('.heap-floating-toast'), { opacity: 0, y: -10, duration: 0.5 }, '-=0.3')
+          .from(heroRef.current.querySelectorAll('.heap-keyword-tag'), { opacity: 0, scale: 0.85, duration: 0.4, stagger: 0.08 }, '-=0.2')
+          .add(() => {
+            if (statTopicsRef.current) {
+              gsap.to({ value: 0 }, {
+                value: overallStats.total,
+                duration: 1.1,
+                ease: 'power1.out',
+                onUpdate() {
+                  if (statTopicsRef.current) {
+                    statTopicsRef.current.textContent = Math.round(this.targets()[0].value);
+                  }
+                }
+              });
+            }
+            if (statTracksRef.current) {
+              gsap.to({ value: 0 }, {
+                value: topics.length,
+                duration: 1.1,
+                ease: 'power1.out',
+                onUpdate() {
+                  if (statTracksRef.current) {
+                    statTracksRef.current.textContent = Math.round(this.targets()[0].value);
+                  }
+                }
+              });
+            }
+          }, '-=0.4');
       }
 
       if (codeCardRef.current) {
         gsap.set(codeCardRef.current, { transformPerspective: 1000 });
-        gsap.fromTo(
-          codeCardRef.current,
-          {
-            opacity: 0,
-            y: 30,
-            rotate: 8,
-          },
-          {
-            opacity: 1,
-            y: 0,
-            rotate: -3,
-            duration: 0.85,
-            ease: 'power3.out',
-            delay: 0.2
-          }
-        );
       }
 
-      if (codeWrapRef.current && codeCardRef.current) {
+      if (
+        codeWrapRef.current &&
+        codeCardRef.current &&
+        copyLineRef.current &&
+        copyPillRef.current &&
+        fakeCursorRef.current &&
+        copiedToastRef.current
+      ) {
         wrap = codeWrapRef.current;
         const card = codeCardRef.current;
+        const cursor = fakeCursorRef.current;
+        const pill = copyPillRef.current;
+        const toast = copiedToastRef.current;
+        const copyLine = copyLineRef.current;
 
         handleMove = (event) => {
           const rect = wrap.getBoundingClientRect();
@@ -208,7 +269,7 @@ export default function Home() {
           gsap.to(card, {
             rotateY: 0,
             rotateX: 0,
-            rotate: window.innerWidth > 640 ? -3 : 0,
+            rotate: -3,
             duration: 0.6,
             ease: 'power3.out'
           });
@@ -216,6 +277,37 @@ export default function Home() {
 
         wrap.addEventListener('mousemove', handleMove);
         wrap.addEventListener('mouseleave', handleLeave);
+
+        const runCopyDemo = () => {
+          const cardBox = card.getBoundingClientRect();
+          const lineBox = copyLine.getBoundingClientRect();
+          if (!cardBox.width || !lineBox.width) {
+            gsap.delayedCall(0.2, runCopyDemo);
+            return;
+          }
+
+          const startX = lineBox.left - cardBox.left + 40;
+          const startY = lineBox.top - cardBox.top - 40;
+          const targetX = lineBox.right - cardBox.left - 30;
+          const targetY = lineBox.top - cardBox.top + 8;
+
+          gsap.set(cursor, { x: startX, y: startY, opacity: 0, scale: 1, transformOrigin: 'center center' });
+          gsap.set(toast, { x: targetX + 10, y: targetY - 26, opacity: 0 });
+          gsap.set(pill, { opacity: 0 });
+
+          copyDemoTimeline = gsap.timeline({ repeat: -1, repeatDelay: 2.2 });
+          copyDemoTimeline
+            .to(cursor, { opacity: 1, duration: 0.2 })
+            .to(cursor, { x: targetX, y: targetY, duration: 0.7, ease: 'power2.inOut' })
+            .to(pill, { opacity: 1, duration: 0.2 })
+            .to(cursor, { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 })
+            .to(toast, { opacity: 1, y: targetY - 34, duration: 0.3 }, '-=0.05')
+            .to(toast, { opacity: 0, duration: 0.3, delay: 0.9 })
+            .to(pill, { opacity: 0, duration: 0.2 }, '-=0.3')
+            .to(cursor, { opacity: 0, duration: 0.3 }, '-=0.1');
+        };
+
+        gsap.delayedCall(1.6, runCopyDemo);
       }
 
       if (statsRef.current) {
@@ -262,24 +354,12 @@ export default function Home() {
     return () => {
       if (wrap && handleMove) wrap.removeEventListener('mousemove', handleMove);
       if (wrap && handleLeave) wrap.removeEventListener('mouseleave', handleLeave);
+      if (copyDemoTimeline) copyDemoTimeline.kill();
+      gsap.killTweensOf([fakeCursorRef.current, copyPillRef.current, copiedToastRef.current]);
       ctx.revert();
       ScrollTrigger.getAll().forEach(st => st.kill());
     };
-  }, []);
-
-  const overallStats = useMemo(() => {
-    let totalTopics = 0;
-    let totalMastered = 0;
-    topics.forEach((t) => {
-      totalTopics += t.totalCount;
-      totalMastered += progress[t.key] || 0;
-    });
-    return {
-      total: totalTopics,
-      mastered: totalMastered,
-      percent: totalTopics ? Math.round((totalMastered / totalTopics) * 100) : 0,
-    };
-  }, [progress, topics]);
+  }, [overallStats.total, topics.length]);
 
   const handleResetProgress = () => {
     if (window.confirm('Are you sure you want to reset all revision progress? This will clear all mastered checks.')) {
@@ -332,6 +412,8 @@ export default function Home() {
     [{ text: '}', color: syntax.plain }],
   ];
 
+  const heroKeywords = ['volatile', 'B+ Tree', 'Kafka Producer', 'happens-before'];
+
   return (
     <div
       className="home-page-shell"
@@ -344,70 +426,76 @@ export default function Home() {
         transition: 'all 0.3s ease',
       }}
     >
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
       <div className="home-page-inner" style={{ maxWidth: 1180, margin: '0 auto', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 10, left: '-6%', width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(249, 115, 22, 0.14), transparent 70%)', filter: 'blur(10px)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: 360, right: '-8%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.14), transparent 70%)', filter: 'blur(12px)', pointerEvents: 'none' }} />
         <section
           ref={heroRef}
+          className="heap-hero-section"
           style={{
             position: 'relative',
             overflow: 'visible',
-            padding: 'clamp(20px, 4vw, 44px) 0 clamp(16px, 2vw, 22px)',
+            padding: 'clamp(8px, 1.5vw, 16px) 0 clamp(20px, 3vw, 28px)',
             marginBottom: 12,
           }}
         >
-          <div className="heap-glow" />
+          <div className="heap-grid-fade" />
+          <div className="heap-glow heap-glow-a" />
+          <div className="heap-glow heap-glow-b" />
+          <div className="heap-glow heap-glow-c" />
 
           <div className="heap-hero-grid">
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-                <img src={heapnotesLogo} alt="HeapNotes" style={{ height: 34, width: 'auto' }} />
-                <div
-                  className="heap-hero-badge"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
-                    fontSize: 11,
-                    letterSpacing: 0.8,
-                    color: isDark ? '#93c5fd' : '#2563eb',
-                    background: isDark ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.08)',
-                    border: isDark ? '1px solid rgba(59,130,246,0.22)' : '1px solid rgba(59,130,246,0.18)',
-                    borderRadius: 999,
-                    padding: '6px 12px',
-                  }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: isDark ? '#60a5fa' : '#3b82f6', display: 'inline-block' }} />
-                  HEAPNOTES · {overallStats.total} TOPICS
-                </div>
+            <div className="heap-hero-copy-wrap">
+              <div
+                className="heap-hero-badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
+                  fontSize: 11,
+                  letterSpacing: 0.8,
+                  color: '#67e8f9',
+                  background: 'rgba(6,182,212,0.1)',
+                  border: '1px solid rgba(6,182,212,0.2)',
+                  borderRadius: 999,
+                  padding: '6px 12px',
+                  marginBottom: 28,
+                }}
+              >
+                <span className="heap-badge-dot-wrap">
+                  <span className="heap-badge-dot-ping" />
+                  <span className="heap-badge-dot" />
+                </span>
+                HEAPNOTES · {overallStats.total} TOPICS
               </div>
 
               <h1
                 className="heap-hero-heading"
                 style={{
-                  fontSize: 'clamp(36px, 6vw, 64px)',
-                  fontWeight: 700,
-                  color: '#fff',
-                  lineHeight: 1.05,
+                  fontFamily: "'Sora', 'DM Sans', sans-serif",
+                  fontSize: 'clamp(42px, 6vw, 58px)',
+                  fontWeight: 800,
+                  color: isDark ? '#fff' : '#0f172a',
+                  lineHeight: 1.06,
                   letterSpacing: '-0.03em',
-                  margin: '0 0 20px 0',
-                  maxWidth: 680,
+                  margin: '0 0 24px 0',
+                  maxWidth: 780,
                 }}
               >
-                Revision notes for
+                Not just <span style={{ color: isDark ? '#64748b' : '#475569', fontWeight: 500 }}>what</span> it does.
                 <br />
                 <span
                   style={{
-                    background: 'linear-gradient(90deg, #60a5fa, #a78bfa)',
+                    background: 'linear-gradient(90deg, #67e8f9, #38bdf8, #a78bfa)',
                     WebkitBackgroundClip: 'text',
                     backgroundClip: 'text',
                     color: 'transparent',
                   }}
                 >
-                  serious Java prep.
+                  Why, how, and when.
                 </span>
               </h1>
 
@@ -415,48 +503,78 @@ export default function Home() {
                 className="heap-hero-sub"
                 style={{
                   color: isDark ? '#94a3b8' : '#475569',
-                  fontSize: 15,
+                  fontSize: 15.5,
                   lineHeight: 1.75,
-                  maxWidth: 460,
-                  margin: '0 0 32px 0',
+                  maxWidth: 580,
+                  margin: '0 0 28px 0',
                 }}
               >
-                {overallStats.total} topics across Spring Boot, concurrency, Streams, Kafka and DSA — structured for interview revision, not scrolling.
+                Every topic goes from plain-English definition to internal mechanics to the trade-off that decides whether you'd actually reach for it — the depth interviewers probe for.
               </p>
 
-              <div className="heap-hero-ctas" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 28 }}>
+              <div className="heap-hero-stepper" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28, maxWidth: 620, flexWrap: 'wrap' }}>
+                {['Definition', 'Internals', 'Trade-offs', 'Real usage'].map((item, index) => (
+                  <div key={item} style={{ display: 'contents' }}>
+                    <span
+                      className="heap-step-chip"
+                      style={{
+                        fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
+                        fontSize: 11.5,
+                        color: item === 'Real usage' ? '#67e8f9' : isDark ? '#cbd5e1' : '#334155',
+                        background: item === 'Real usage' ? 'rgba(6,182,212,0.1)' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.58)',
+                        border: item === 'Real usage' ? '1px solid rgba(6,182,212,0.2)' : isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(148, 163, 184, 0.28)',
+                        borderRadius: 8,
+                        padding: '6px 10px'
+                      }}
+                    >
+                      {item}
+                    </span>
+                    {index < 3 && <span className="heap-step-arrow" style={{ color: '#334155', fontSize: 12 }}>→</span>}
+                  </div>
+                ))}
+              </div>
+
+              <div className="heap-hero-ctas" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
                 <Link
                   to="/java"
+                  className="heap-cta-button heap-cta-primary"
                   style={{
                     textDecoration: 'none',
-                    background: 'linear-gradient(90deg, #3b82f6, #7c3aed)',
-                    color: '#fff',
+                    background: 'linear-gradient(90deg, #22d3ee, #8b5cf6)',
+                    color: '#020617',
                     fontSize: 14,
-                    fontWeight: 600,
+                    fontWeight: 700,
                     padding: '12px 20px',
                     borderRadius: 12,
-                    boxShadow: '0 16px 36px rgba(30, 64, 175, 0.28)',
+                    boxShadow: '0 16px 36px rgba(6,182,212,0.18)',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease'
                   }}
                 >
                   Open Spring Boot notes →
                 </Link>
                 <a
                   href="#library"
+                  className="heap-cta-button heap-cta-secondary"
                   style={{
                     textDecoration: 'none',
-                    color: isDark ? '#cbd5e1' : '#334155',
+                    color: isDark ? '#cbd5e1' : '#1e293b',
                     fontSize: 14,
                     fontWeight: 500,
                     padding: '12px 20px',
                     borderRadius: 12,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.5)',
+                    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(148, 163, 184, 0.28)',
+                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.58)',
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease'
                   }}
                 >
                   Browse library
                 </a>
+              </div>
+
+              <div className="heap-hero-note" style={{ fontSize: 12, color: '#64748b', marginBottom: 36 }}>
+                No signup — jump straight into the notes.
               </div>
 
               <div
@@ -466,7 +584,7 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'stretch',
                   gap: 0,
-                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                  borderTop: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(148, 163, 184, 0.22)',
                   paddingTop: 20,
                   maxWidth: 430,
                   flexWrap: 'nowrap',
@@ -479,16 +597,32 @@ export default function Home() {
                 ].map((item, index) => (
                   <div key={item.label} style={{ display: 'flex', alignItems: 'center' }}>
                     <div style={{ padding: index === 0 ? '0 24px 0 0' : '0 24px', minWidth: 92 }}>
-                      <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>{item.value}</div>
-                      <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8', marginTop: 2 }}>{item.label}</div>
+                        <div style={{ fontFamily: "'Sora', 'DM Sans', sans-serif", fontSize: 28, fontWeight: 700, color: isDark ? '#fff' : '#0f172a' }}>{item.label === 'Topics' ? <span ref={statTopicsRef}>0</span> : item.label === 'Tracks' ? <span ref={statTracksRef}>0</span> : item.value}</div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{item.label}</div>
                     </div>
-                    {index < 2 && <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.1)' }} />}
+                    {index < 2 && <div style={{ width: 1, height: 36, background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(148, 163, 184, 0.22)' }} />}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div ref={codeWrapRef} className="heap-code-wrap" style={{ perspective: '1000px' }}>
+            <div ref={codeWrapRef} className="heap-code-wrap heap-code-wrap-offset" style={{ perspective: '1000px' }}>
+              <div className="heap-code-stack" />
+              <div className="heap-floating-toast">
+                <span className="heap-toast-dot" />
+                <span style={{ fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace", fontSize: 11, color: '#cbd5e1' }}>ConcurrentHashMap — just added</span>
+              </div>
+
+              {heroKeywords.map((tag, index) => (
+                <div key={tag} className={`heap-keyword-tag heap-keyword-tag-${index + 1}`}>{tag}</div>
+              ))}
+
+              <svg ref={fakeCursorRef} width="20" height="20" viewBox="0 0 24 24" fill="white" style={{ position: 'absolute', zIndex: 40, left: 0, top: 0, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))', opacity: 0, pointerEvents: 'none', overflow: 'visible' }}>
+                <path d="M4 2 L4 18 L8.5 14.5 L11 21 L13.5 20 L11 13.5 L17 13.5 Z" stroke="black" strokeWidth="1" />
+              </svg>
+              <div ref={copiedToastRef} style={{ position: 'absolute', left: 0, top: 0, zIndex: 40, opacity: 0, pointerEvents: 'none', fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace", fontSize: 11, color: '#6ee7b7', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10, padding: '6px 10px', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+                ✓ Copied — ⌘C
+              </div>
               <div ref={codeCardRef} className="heap-code-card" style={{
                 background: isDark ? 'rgba(20,25,38,0.55)' : 'rgba(255,255,255,0.52)',
                 backdropFilter: 'blur(18px) saturate(140%)',
@@ -511,14 +645,41 @@ export default function Home() {
                 </div>
 
                 <div style={{ fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace", fontSize: 12.5, lineHeight: '24px', padding: '16px 20px' }}>
-                  {heroCode.map((parts, index) => (
-                    <div key={index} style={{ whiteSpace: 'pre-wrap' }}>
-                      {parts.map((part, partIndex) => (
-                        <span key={partIndex} style={{ color: part.color }}>{part.text}</span>
-                      ))}
-                      {index === heroCode.length - 1 && <span className="hero-cursor">▍</span>}
+                  {heroCode.map((parts, index) => {
+                    if (index === 4) {
+                      return (
+                        <div key={index} ref={copyLineRef} style={{ whiteSpace: 'pre-wrap', position: 'relative', display: 'flex', alignItems: 'center', gap: 8, width: 'fit-content' }}>
+                          <span>
+                            {parts.map((part, partIndex) => (
+                              <span key={partIndex} style={{ color: part.color }}>{part.text}</span>
+                            ))}
+                          </span>
+                          <span ref={copyPillRef} style={{ opacity: 0, fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace", fontSize: 11, color: '#cbd5e1', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '2px 6px' }}>Copy</span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={index} style={{ whiteSpace: 'pre-wrap' }}>
+                        {parts.map((part, partIndex) => (
+                          <span key={partIndex} style={{ color: part.color }}>{part.text}</span>
+                        ))}
+                        {index === heroCode.length - 1 && <span className="hero-cursor">▍</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="heap-code-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ display: 'flex', marginLeft: 4 }}>
+                      <span className="heap-avatar-dot heap-avatar-dot-a" />
+                      <span className="heap-avatar-dot heap-avatar-dot-b" />
+                      <span className="heap-avatar-dot heap-avatar-dot-c" />
                     </div>
-                  ))}
+                    <span style={{ fontSize: 11, color: '#64748b' }}>500+ engineers revising</span>
+                  </div>
+                  <span style={{ fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace", fontSize: 11, color: '#6ee7b7', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 6, padding: '2px 8px' }}>● live</span>
                 </div>
               </div>
             </div>
@@ -544,6 +705,7 @@ export default function Home() {
             </div>
             <button
               onClick={handleResetProgress}
+              className="heap-cta-button heap-outline-button"
               style={{
                 background: 'transparent',
                 border: '1px solid var(--border-color)',
@@ -553,6 +715,7 @@ export default function Home() {
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
+                transition: 'transform 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease'
               }}
             >
               Reset Progress
@@ -704,6 +867,7 @@ export default function Home() {
           </p>
           <button
             onClick={handleResetProgress}
+            className="heap-cta-button heap-outline-danger"
             style={{
               background: 'transparent',
               border: '1px solid var(--border-color)',

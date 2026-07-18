@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import Navigation from './components/Navigation';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import Java from './pages/Java';
 import Multithreading from './pages/Multithreading';
@@ -10,11 +11,13 @@ import Collections from './pages/Collections';
 import SQL from './pages/SQL';
 import Kafka from './pages/Kafka';
 import PreviousInterview from './pages/PreviousInterview';
+import ReactInterview from './pages/ReactInterview';
 import SystemDesign from './systemdesign';
 
 function App() {
   return (
     <div className="app">
+      <ScrollToTop />
       <Navigation />
       <main className="main-content">
         <Routes>
@@ -28,6 +31,7 @@ function App() {
           <Route path="/sql" element={<SQL />} />
           <Route path="/kafka" element={<Kafka />} />
           <Route path="/previous-interview" element={<PreviousInterview />} />
+          <Route path="/react-interview" element={<ReactInterview />} />
           <Route path="/system-design" element={<SystemDesign />} />
         </Routes>
       </main>

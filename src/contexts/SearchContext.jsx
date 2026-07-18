@@ -17,6 +17,7 @@ import { SECTIONS as DSA_SECTIONS } from '../javadsa';
 import { SECTIONS as MULTITHREADING_SECTIONS } from '../javamultithreading';
 import { SECTIONS as STREAMS_SECTIONS } from '../javastreams';
 import { SECTIONS as COLLECTIONS_SECTIONS } from '../javacollection';
+import { SECTIONS as REACT_INTERVIEW_SECTIONS } from '../reactinterview';
 import { SECTIONS as SYSTEM_DESIGN_SECTIONS } from '../systemdesign';
 
 const ALL_DATA = [
@@ -26,6 +27,7 @@ const ALL_DATA = [
   { source: 'Multithreading', path: '/multithreading', sections: MULTITHREADING_SECTIONS },
   { source: 'Streams', path: '/streams', sections: STREAMS_SECTIONS },
   { source: 'Collections', path: '/collections', sections: COLLECTIONS_SECTIONS },
+  { source: 'React Interview', path: '/react-interview', sections: REACT_INTERVIEW_SECTIONS },
   { source: 'System Design', path: '/system-design', sections: SYSTEM_DESIGN_SECTIONS },
 ];
 

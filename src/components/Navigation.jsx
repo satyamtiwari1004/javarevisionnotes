@@ -41,32 +41,32 @@ const Navigation = () => {
   return (
     <nav ref={navRef} style={{ 
       background: isDark 
-        ? 'rgba(17, 24, 39, 0.75)' 
-        : 'rgba(255,255,255,0.85)',
-      backdropFilter: "blur(16px)",
-      WebkitBackdropFilter: "blur(16px)",
-      borderBottom: "1px solid rgba(255,255,255,0.1)",
-      padding: "calc(22px + env(safe-area-inset-top, 0px)) clamp(16px, 3vw, 24px) 22px",
+        ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.5))' 
+        : 'linear-gradient(135deg, rgba(255,255,255,0.5), rgba(248,250,252,0.5))',
+      backdropFilter: "blur(24px) saturate(155%)",
+      WebkitBackdropFilter: "blur(24px) saturate(155%)",
+      borderBottom: isDark ? "1px solid rgba(255,255,255,0.16)" : "1px solid rgba(148, 163, 184, 0.28)",
+      padding: "calc(13px + env(safe-area-inset-top, 0px)) clamp(14px, 2.4vw, 24px) calc(13px + 0.9375rem)",
       position: "sticky",
       top: 0,
       zIndex: 100,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+      boxShadow: isDark ? "0 14px 34px rgba(2, 6, 23, 0.22)" : "0 14px 30px rgba(148, 163, 184, 0.14)",
       transition: "all 0.3s ease"
     }}>
-      <div className="app-nav-inner" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div className="app-nav-inner" style={{ maxWidth: 1280, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", alignContent: "center", minHeight: 40, gap: 12, flexWrap: "nowrap" }}>
         <Link 
           to="/" 
           className="app-nav-brand"
           style={{ 
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: 18, 
-            fontWeight: 800, 
-            color: "var(--text-title)", 
+            fontFamily: "'Sora', 'DM Sans', sans-serif",
+            fontSize: 17, 
+            fontWeight: 700, 
+            color: isDark ? "var(--text-title)" : "#0f172a", 
             textDecoration: "none",
-            letterSpacing: "-0.5px",
+            letterSpacing: "-0.4px",
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 12,
             transition: "opacity 0.2s ease",
             minWidth: 0
           }}
@@ -77,17 +77,17 @@ const Navigation = () => {
             src={heapnotesLogo}
             alt="HeapNotes"
             className="app-nav-logo"
-            style={{ height: 36, width: 'auto', flexShrink: 0 }}
+            style={{ height: 28, width: 'auto', flexShrink: 0 }}
           />
-          <span className="app-nav-brand-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.1 }}>
+          <span className="app-nav-brand-copy" style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.02 }}>
             <span>HeapNotes</span>
-            <span className="app-nav-brand-sub" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: 0 }}>Developer revision notes</span>
+            <span className="app-nav-brand-sub" style={{ fontSize: 10, fontWeight: 600, color: isDark ? "var(--text-secondary)" : "#475569", letterSpacing: 0 }}>Developer revision notes</span>
           </span>
         </Link>
         
         {/* Search Bar & Theme Switcher */}
-        <div className="app-nav-actions" style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, justifyContent: "flex-end", maxWidth: 600, minWidth: 0, flexWrap: "wrap" }}>
-          <div ref={searchRef} className="app-nav-search" style={{ position: "relative", width: "100%", maxWidth: 380, minWidth: "min(100%, 240px)" }}>
+        <div className="app-nav-actions" style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "flex-end", minWidth: 0, flex: 1 }}>
+          <div ref={searchRef} className="app-nav-search" style={{ position: "relative", width: "100%", maxWidth: 290, minWidth: 0, flex: 1 }}>
             <input
               value={searchQuery}
               onChange={(e) => {
@@ -103,17 +103,17 @@ const Navigation = () => {
                 e.target.style.borderColor = "var(--border-color)";
                 e.target.style.boxShadow = "none";
               }}
-              placeholder="Search all topics..."
+              placeholder="Search all topics…"
               style={{
                 width: "100%",
                 boxSizing: "border-box",
-                padding: "9px 16px 9px 36px",
+                padding: "7px 52px 7px 32px",
                 background: isDark 
-                  ? 'rgba(11, 17, 30, 0.6)' 
-                  : 'rgba(255,255,255,0.8)',
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 10,
-                color: "var(--text-primary)",
+                  ? 'rgba(11, 17, 30, 0.4)' 
+                  : 'rgba(255,255,255,0.5)',
+                border: isDark ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(148, 163, 184, 0.28)",
+                borderRadius: 9,
+                color: isDark ? "var(--text-primary)" : "#0f172a",
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: 13,
                 outline: "none",
@@ -127,10 +127,24 @@ const Navigation = () => {
               left: 13, 
               top: "50%", 
               transform: "translateY(-50%)", 
-              color: "var(--text-secondary)", 
+              color: isDark ? "var(--text-secondary)" : "#64748b", 
               fontSize: 14,
               pointerEvents: "none"
             }}>⌕</span>
+            <span style={{
+              position: 'absolute',
+              right: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: isDark ? 'var(--text-secondary)' : '#475569',
+              fontSize: 10.5,
+              fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
+              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.78)',
+              border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(148, 163, 184, 0.3)',
+              borderRadius: 6,
+              padding: '2px 6px',
+              pointerEvents: 'none'
+            }}>⌘K</span>
             
             {/* Search Results Dropdown */}
             {isSearchOpen && searchQuery && (
@@ -231,13 +245,13 @@ const Navigation = () => {
             onClick={toggleTheme}
             style={{
               background: isDark 
-                ? 'rgba(11, 17, 30, 0.6)' 
-                : 'rgba(255,255,255,0.8)',
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "var(--text-primary)",
-              width: 38,
-              height: 38,
-              borderRadius: 10,
+                ? 'rgba(11, 17, 30, 0.4)' 
+                : 'rgba(255,255,255,0.5)',
+              border: isDark ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(148, 163, 184, 0.24)",
+              color: isDark ? "var(--text-primary)" : "#0f172a",
+              width: 32,
+              height: 32,
+              borderRadius: 9,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -249,8 +263,8 @@ const Navigation = () => {
               transition: "all 0.2s ease",
               outline: "none"
             }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "var(--border-hover)"}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border-color)"}
+            onMouseEnter={e => e.currentTarget.style.borderColor = isDark ? "var(--border-hover)" : "rgba(14, 165, 233, 0.35)"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = isDark ? "var(--border-color)" : "rgba(148, 163, 184, 0.24)"}
             title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
             {isDark ? "☀️" : "🌙"}
