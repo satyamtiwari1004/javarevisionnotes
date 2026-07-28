@@ -13,6 +13,7 @@ import Kafka from './pages/Kafka';
 import PreviousInterview from './pages/PreviousInterview';
 import ReactInterview from './pages/ReactInterview';
 import SystemDesign from './systemdesign';
+import Microservices from './microservices';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="/previous-interview" element={<PreviousInterview />} />
           <Route path="/react-interview" element={<ReactInterview />} />
           <Route path="/system-design" element={<SystemDesign />} />
+          <Route path="/microservices" element={<Microservices />} />
         </Routes>
       </main>
     </div>

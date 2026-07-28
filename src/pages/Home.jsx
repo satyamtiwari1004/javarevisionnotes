@@ -18,6 +18,7 @@ import { SECTIONS as KAFKA_SECTIONS } from '../kafka_reference';
 import { SECTIONS as INTERVIEW_SECTIONS } from '../java_previous_interview';
 import { SECTIONS as REACT_INTERVIEW_SECTIONS } from '../reactinterview';
 import { SECTIONS as SYSTEM_DESIGN_SECTIONS } from '../systemdesign';
+import { SECTIONS as MICROSERVICES_SECTIONS } from '../microservices';
 
 export default function Home() {
   const { isDark } = useTheme();
@@ -144,6 +145,16 @@ export default function Home() {
       color: '#6366F1',
       eyebrow: 'Architecture',
       totalCount: SYSTEM_DESIGN_SECTIONS.reduce((acc, s) => acc + s.topics.length, 0)
+    },
+    {
+      title: 'Microservices',
+      description: 'Service discovery, API gateway, load balancing, resilience patterns, and distributed data consistency.',
+      path: '/microservices',
+      key: 'microservices',
+      icon: '⚡',
+      color: '#0EA5E9',
+      eyebrow: 'Architecture',
+      totalCount: MICROSERVICES_SECTIONS.reduce((acc, s) => acc + s.topics.length, 0)
     }
   ], []);
 

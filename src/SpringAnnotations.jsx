@@ -1220,6 +1220,296 @@ public class CacheWarmupService {
     }
 }`
       },
+      {
+        n: "Spring Bean Lifecycle (Full Sequence)",
+        theory: `The bean lifecycle is the exact sequence of steps Spring performs to turn a class definition into a fully usable, managed object, and eventually tear it down. Interviewers love this because it explains WHY annotations like @PostConstruct exist and WHEN injected fields become safe to use.
+
+Full sequence for a singleton bean:
+1. Bean definition loading — Spring reads @Component/@Bean/XML definitions and builds a BeanDefinition (metadata: class, scope, dependencies) in the BeanDefinitionRegistry. No objects exist yet.
+2. BeanFactoryPostProcessor hooks run — these operate on BEAN DEFINITIONS (metadata) before any bean is instantiated. Example: PropertySourcesPlaceholderConfigurer resolves \${...} placeholders in bean definitions.
+3. Instantiation — Spring calls the constructor (constructor injection happens here — dependencies must already exist, triggering their own lifecycle recursively).
+4. Populate properties — field/setter injection happens here (@Autowired on fields/setters runs after construction, unlike constructor injection).
+5. Aware interfaces invoked (if implemented) — BeanNameAware.setBeanName(), BeanFactoryAware.setBeanFactory(), ApplicationContextAware.setApplicationContext(). Gives the bean access to Spring infrastructure it wouldn't get via normal DI.
+6. BeanPostProcessor#postProcessBeforeInitialization — runs for EVERY bean. This is how @Autowired, @Value, and @Configuration proxying, and @Async/@Transactional proxy-wrapping actually get implemented internally.
+7. @PostConstruct / InitializingBean.afterPropertiesSet() / custom init-method — in that order if more than one is present.
+8. BeanPostProcessor#postProcessAfterInitialization — this is where AOP proxies (for @Transactional, @Cacheable, @Async) are actually created, wrapping the raw bean in a proxy. This is why the object you get back from Spring can be a different object (a proxy) than the one your constructor built.
+9. Bean is ready — placed in the singleton cache, available for injection.
+10. Shutdown — on context close: @PreDestroy / DisposableBean.destroy() / custom destroy-method run, in that order, for singleton beans only.
+
+Key interview insight: BeanFactoryPostProcessor operates on definitions/metadata (step 2); BeanPostProcessor operates on live bean instances (steps 6 & 8). Confusing these two is the most common mistake. Also: AOP proxying is NOT magic — it's a BeanPostProcessor (AnnotationAwareAspectJAutoProxyCreator) wrapping your bean after initialization, which is exactly why calling a @Transactional method from ANOTHER method in the SAME class bypasses the proxy and the transaction doesn't apply (self-invocation problem).`,
+        desc: "Definition loading → BeanFactoryPostProcessor (metadata) → constructor → property injection → Aware callbacks → BeanPostProcessor before → @PostConstruct → BeanPostProcessor after (AOP proxies created here) → ready → @PreDestroy on shutdown.",
+        code: `@Component
+public class LifecycleDemoBean implements
+        BeanNameAware, ApplicationContextAware, InitializingBean, DisposableBean {
+
+    @Value("\${app.name}")
+    private String appName;   // step 4: property injection
+
+    @Override
+    public void setBeanName(String name) {
+        System.out.println("5. Aware: bean name = " + name);
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext ctx) {
+        System.out.println("5. Aware: context injected");
+    }
+
+    @PostConstruct
+    public void postConstruct() {
+        System.out.println("7a. @PostConstruct — appName=" + appName);
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        System.out.println("7b. InitializingBean.afterPropertiesSet()");
+    }
+
+    @PreDestroy
+    public void preDestroy() {
+        System.out.println("10a. @PreDestroy");
+    }
+
+    @Override
+    public void destroy() {
+        System.out.println("10b. DisposableBean.destroy()");
+    }
+}
+
+// A custom BeanPostProcessor — runs for every bean, before and after init
+@Component
+public class TimingBeanPostProcessor implements BeanPostProcessor {
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) {
+        System.out.println("Before init: " + beanName);
+        return bean; // must return the bean (or a wrapped/proxied version)
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) {
+        System.out.println("After init: " + beanName);
+        return bean; // AOP proxies get created by returning a proxy here
+    }
+}`
+      },
+      {
+        n: "@Lazy",
+        theory: `By default, singleton beans are eagerly instantiated at ApplicationContext startup — every singleton is created, wired, and initialised before the application is ready to serve traffic. @Lazy changes this: the bean is only created the first time it is actually requested (injected somewhere and that injection point is used, or fetched via getBean()).
+
+Where it can be applied:
+• On a @Component/@Bean/@Configuration class — that bean is created on first use instead of at startup.
+• On an @Autowired injection point — Spring injects a CGLIB proxy immediately, but the REAL bean behind it is only created the first time a method is called on the proxy.
+• Globally via spring.main.lazy-initialization=true in application.properties — makes ALL beans lazy application-wide (faster startup, useful for local dev, but defers config errors to runtime and can hide startup problems).
+
+Why use it:
+• Faster application startup when a bean is expensive to create (e.g., loads a large ML model) but rarely used.
+• Breaking certain circular dependency situations that field/setter injection can't otherwise resolve.
+• Reducing unnecessary bean creation for optional/rarely-used features.
+
+Trade-off (interview trap): Lazy beans defer failures. If a lazily-initialised bean has a misconfiguration, you won't find out at startup (fail-fast is lost) — you'll get a runtime exception the first time it's actually used, possibly in production traffic. This is why @Lazy is used selectively, not globally, in most production systems.`,
+        desc: "Defers bean creation until first use instead of at context startup. Useful for expensive beans or breaking circular dependencies, at the cost of losing fail-fast startup validation.",
+        code: `@Lazy
+@Component
+public class ExpensiveMlModelLoader {
+    public ExpensiveMlModelLoader() {
+        System.out.println("Loading 2GB model into memory...");
+        // only runs when first actually needed, not at startup
+    }
+}
+
+@Service
+public class PredictionService {
+
+    private final ExpensiveMlModelLoader loader;
+
+    // Spring injects a proxy immediately; real object built on first call
+    public PredictionService(@Lazy ExpensiveMlModelLoader loader) {
+        this.loader = loader;
+    }
+}`
+      },
+      {
+        n: "@DependsOn",
+        theory: `@DependsOn forces Spring to initialise one or more specified beans BEFORE the annotated bean, even when there is no direct field/constructor dependency between them that Spring's DI graph would normally detect.
+
+Why it's needed: Spring normally figures out creation order automatically from constructor/field dependencies. But sometimes a bean depends on another bean's SIDE EFFECT rather than its reference — for example, a bean that needs a database driver to already be registered, or a JDBC DataSource pool that must be initialised before a cache warms up, with no actual object reference passed between them.
+
+Also affects shutdown order: beans declared with @DependsOn are destroyed AFTER the bean that depends on them, preserving the correct teardown sequence.
+
+Common real use cases:
+• Ensuring a Flyway/Liquibase migration bean runs before a repository bean that assumes the schema already exists.
+• Ordering initialisation of JMS/Kafka listener containers relative to registry beans.
+• Legacy static initialisers or JDBC driver registration beans.
+
+Caveat: @DependsOn is a code smell if overused — it usually signals a hidden dependency that would be cleaner expressed as an actual object reference (constructor injection). Prefer real dependencies where possible; reach for @DependsOn only for side-effect-based ordering.`,
+        desc: "Forces explicit bean creation (and destruction) ordering when there's no direct object reference between beans, only a side-effect dependency.",
+        code: `@Component
+public class DatabaseMigrationRunner {
+    public DatabaseMigrationRunner() {
+        System.out.println("Running Flyway migrations...");
+    }
+}
+
+@Component
+@DependsOn("databaseMigrationRunner")   // must run AFTER migrations
+public class ReportingRepository {
+    public ReportingRepository() {
+        System.out.println("Repository ready — schema guaranteed to exist");
+    }
+}`
+      },
+      {
+        n: "Circular Dependency Resolution",
+        theory: `A circular dependency is when bean A needs bean B, and bean B needs bean A (directly or through a longer chain). Understanding how — and whether — Spring resolves this is a very common interview question.
+
+Field/setter injection (works, via early bean exposure):
+Spring's singleton creation uses a three-level cache system:
+1. singletonObjects — fully created beans.
+2. earlySingletonObjects — raw, not-yet-fully-initialised bean instances (or their early proxy reference).
+3. singletonFactories — factories that can produce the early reference, allowing AOP proxies to be resolved correctly even mid-creation.
+
+When creating bean A, Spring instantiates it (constructor done), then BEFORE populating its properties, exposes an "early reference" to A in the third-level cache. When B is created and needs A, Spring finds this early reference and injects it — even though A isn't fully initialised (its own fields aren't set yet) — because with field/setter injection, dependency resolution happens by reference, not by value at construction time. By the time anyone actually CALLS a method on A, both objects have finished full initialisation.
+
+Constructor injection (fails, throws BeanCurrentlyInCreationException):
+Constructor injection requires ALL constructor arguments to be fully resolved BEFORE the object can be constructed at all — there is no "early reference" possible because the object doesn't exist yet. A needs B's constructor argument, B needs A's constructor argument — deadlock. Spring detects this and fails fast at startup rather than looping forever.
+
+How to actually fix it (the early-reference trick is a mechanism, not a recommended pattern):
+• Best: redesign — circular dependencies usually indicate two responsibilities that should be merged, or a missing third class both should depend on.
+• @Lazy on one of the constructor parameters — injects a proxy, breaking the immediate resolution requirement.
+• Switch one side to setter/field injection.
+• Use ApplicationContext.getBean() manually inside a method (not the constructor) as a last resort.
+
+Interview one-liner: "Spring CAN resolve circular dependencies with field injection via its early-reference cache, but CANNOT with pure constructor injection, and will throw BeanCurrentlyInCreationException — which is actually a feature, because it forces you to notice a design problem instead of silently limping along."`,
+        desc: "Field/setter injection: Spring resolves circular deps via an early-reference singleton cache. Constructor injection: impossible to resolve, throws BeanCurrentlyInCreationException at startup — a signal to redesign or use @Lazy.",
+        code: `// FAILS at startup: BeanCurrentlyInCreationException
+@Service
+public class OrderService {
+    public OrderService(PaymentService paymentService) { ... }
+}
+
+@Service
+public class PaymentService {
+    public PaymentService(OrderService orderService) { ... } // circular!
+}
+
+// FIX 1 — break the cycle with @Lazy (injects a proxy)
+@Service
+public class PaymentService {
+    public PaymentService(@Lazy OrderService orderService) { ... }
+}
+
+// FIX 2 — better: extract shared logic into a third bean
+@Service
+public class OrderPaymentCoordinator {
+    private final OrderService orderService;
+    private final PaymentService paymentService;
+    // both depend on coordinator's callers, not on each other
+}`
+      },
+      {
+        n: "@ComponentScan / @Import / @Conditional",
+        theory: `These annotations control which beans get discovered and registered — the "wiring configuration" layer above individual bean definitions.
+
+@ComponentScan:
+Tells Spring which packages to scan for @Component-stereotyped classes. @SpringBootApplication implicitly includes @ComponentScan on the package containing the main class (and all sub-packages) — this is why Spring Boot conventionally wants your main class at the project root package. Explicit basePackages or basePackageClasses attributes let you scan additional/different locations.
+
+@Import:
+Manually pulls in @Configuration classes (or plain @Component classes) that live outside the normal component-scan path — for example, from a separate library module. Also used to import ImportSelector or ImportBeanDefinitionRegistrar implementations for advanced, programmatic bean registration (this is how many Spring Boot auto-configuration mechanisms work internally).
+
+@Conditional (and its specialisations):
+Registers a bean only if a specified condition evaluates to true at startup. Spring Boot's auto-configuration is built almost entirely on these:
+• @ConditionalOnClass / @ConditionalOnMissingClass — register only if a class is/isn't on the classpath.
+• @ConditionalOnBean / @ConditionalOnMissingBean — register only if a bean is/isn't already defined (lets user-defined beans override Boot's defaults).
+• @ConditionalOnProperty — register only if a property has a specific value (or is present at all).
+• @Profile("prod") — a specialised @Conditional that checks active Spring profiles.
+
+Why this matters: this is literally the mechanism behind Spring Boot's "convention over configuration" auto-configuration — e.g., DataSourceAutoConfiguration only activates @ConditionalOnClass(DataSource.class) AND @ConditionalOnMissingBean(DataSource.class), so it backs off automatically the moment you define your own DataSource bean.`,
+        desc: "@ComponentScan finds classes to register as beans. @Import manually wires in external configuration. @Conditional (and @ConditionalOnBean/@ConditionalOnProperty/@Profile) registers beans only when a condition holds — the backbone of Spring Boot auto-configuration.",
+        code: `@Configuration
+@ComponentScan(basePackages = {"com.acme.orders", "com.acme.shared"})
+@Import({SecurityConfig.class, MetricsConfig.class})
+public class AppConfig { }
+
+@Configuration
+public class CacheAutoConfig {
+
+    @Bean
+    @ConditionalOnMissingBean(CacheManager.class)   // user can override
+    @ConditionalOnProperty(name = "app.cache.enabled", havingValue = "true")
+    public CacheManager defaultCacheManager() {
+        return new ConcurrentMapCacheManager("products");
+    }
+}
+
+@Service
+@Profile("prod")   // only registered when "prod" profile is active
+public class ProdEmailService implements EmailService { ... }
+
+@Service
+@Profile("!prod")  // registered for every profile EXCEPT prod
+public class MockEmailService implements EmailService { ... }`
+      },
+      {
+        n: "FactoryBean vs @Bean factory method",
+        theory: `Both patterns let you control object creation, but they solve different problems and are easy to confuse.
+
+FactoryBean<T> interface:
+A bean that implements FactoryBean<T> is special — when you inject or getBean() the TYPE T, Spring calls factoryBean.getObject() and gives you the PRODUCT, not the factory itself. To get the factory instance itself (rarely needed), you prefix the bean name with &: getBean("&myFactory").
+
+Why it exists: Some objects need complex, possibly multi-step, or externally-delegated construction logic that doesn't fit neatly into a constructor or a single @Bean method — historically used heavily by ORM/library integrations (e.g., MyBatis's SqlSessionFactoryBean, JNDI lookups via JndiObjectFactoryBean). It also lets Spring know the PRODUCT's type via getObjectType() for autowiring-by-type to work correctly before the object is even created.
+
+@Bean factory method (the modern, usual approach):
+A regular method inside a @Configuration class that returns the object directly. For 95% of cases in modern Spring Boot code, this is simpler and preferred — full Java, no extra interface, easy to read.
+
+When you'd still reach for FactoryBean today: integrating a legacy/third-party library that already exposes a FactoryBean (you're consuming it, not writing your own), or building reusable library code that needs to plug into arbitrary consuming applications' contexts without those apps needing a @Configuration class.
+
+Interview note: isSingleton() on FactoryBean controls whether the PRODUCT is cached as a singleton — independent of whether the FactoryBean itself is a singleton bean.`,
+        desc: "FactoryBean<T> is a bean whose job is to build another object — Spring transparently returns the PRODUCT when you request the type, not the factory. Modern code almost always prefers a simple @Bean method instead.",
+        code: `// Implementing a FactoryBean (rare in app code, common in library code)
+public class ConnectionPoolFactoryBean implements FactoryBean<ConnectionPool> {
+
+    @Override
+    public ConnectionPool getObject() {
+        return ConnectionPool.builder()
+                .maxSize(20)
+                .build();               // complex construction logic
+    }
+
+    @Override
+    public Class<?> getObjectType() {
+        return ConnectionPool.class;
+    }
+
+    @Override
+    public boolean isSingleton() {
+        return true;                    // product is cached as singleton
+    }
+}
+
+@Configuration
+public class PoolConfig {
+    @Bean
+    public ConnectionPoolFactoryBean connectionPoolFactoryBean() {
+        return new ConnectionPoolFactoryBean();
+    }
+}
+
+// Elsewhere: injecting ConnectionPool gets the PRODUCT, not the factory
+@Service
+public class QueryService {
+    public QueryService(ConnectionPool pool) { ... } // getObject() result
+}
+
+// The modern, usually-preferred equivalent — no FactoryBean needed
+@Configuration
+public class PoolConfigSimple {
+    @Bean
+    public ConnectionPool connectionPool() {
+        return ConnectionPool.builder().maxSize(20).build();
+    }
+}`
+      },
     ]
   },
   {
