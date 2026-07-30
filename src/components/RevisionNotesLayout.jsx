@@ -105,12 +105,7 @@ export default function RevisionNotesLayout({
           opacity: 0,
           duration: 0.5,
           stagger: 0.05,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: cardsRef.current,
-            start: 'top 85%',
-            toggleActions: 'play none none none'
-          }
+          ease: 'power2.out'
         });
       }
     });
@@ -961,7 +956,8 @@ export default function RevisionNotesLayout({
                                         fontSize: 14,
                                         lineHeight: 1.8,
                                         color: 'var(--text-primary)',
-                                        fontFamily: "'DM Sans', sans-serif"
+                                        fontFamily: "'DM Sans', sans-serif",
+                                        whiteSpace: 'pre-line'
                                       }}>
                                         {/* Render paragraph by paragraph */}
                                         {(item.theory || item.description || '').split('\n\n').filter(Boolean).map((para, idx) => {

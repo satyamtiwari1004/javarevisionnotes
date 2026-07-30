@@ -460,7 +460,9 @@ app.post('/payments/charge', async (req, res) => {
 EXPLANATION:
 WHY A SHARED DATABASE IS AN ANTI-PATTERN: If multiple services read/write the same tables directly, you've recreated tight coupling at the data layer — any schema change requires coordinating across every service touching that table, one service's heavy query load can degrade performance for all the others, and you lose the ability to choose the best database TYPE per service's needs (polyglot persistence).
 
-THE HARD PART — NO CROSS-SERVICE JOINS: Two main approaches: (1) API COMPOSITION — the caller/gateway calls each service's API and joins data in application code; simple for a small number of services, doesn't scale well for large joins. (2) CQRS WITH A MATERIALIZED VIEW — maintain a separate, denormalized read-optimized view kept up to date by subscribing to events published by the owning services, trading staleness for faster/more flexible querying.
+THE HARD PART — NO CROSS-SERVICE JOINS: Two main approaches:
+1. API COMPOSITION — the caller/gateway calls each service's API and joins data in application code; simple for a small number of services, doesn't scale well for large joins.
+2. CQRS WITH A MATERIALIZED VIEW — maintain a separate, denormalized read-optimized view kept up to date by subscribing to events published by the owning services, trading staleness for faster/more flexible querying.
 
 EVENTUAL CONSISTENCY: Because there's no single database transaction spanning services, data across services is only eventually consistent — the fundamental trade-off microservices make in exchange for independent scalability/deployability (exactly what the Saga pattern, next section, addresses for multi-step transactions).
 
@@ -650,7 +652,12 @@ CQRS: Not required for every service — reach for it when read and write worklo
 
 EVENT SOURCING: Current state is derived by replaying events (OrderCreated, ItemAdded, OrderShipped...). Often paired with CQRS: events are the write model, projections are the read model.
 
-STRANGLER FIG PATTERN: Named after the vine that grows around a host tree and gradually replaces it. Steps: put a facade/gateway in front of the monolith → route ONE capability at a time to a new microservice while the facade still routes everything else to the monolith → repeat → eventually retire that part of the monolith.
+STRANGLER FIG PATTERN: Named after the vine that grows around a host tree and gradually replaces it. Steps:
+
+1. Put a facade/gateway in front of the monolith.
+2. Route ONE capability at a time to a new microservice while the facade still routes everything else to the monolith.
+3. Repeat.
+4. Eventually retire that part of the monolith.
 
 SIDECAR & SERVICE MESH: A sidecar handles network retries, mTLS, load balancing, metrics collection so the main service's code doesn't implement any of it. A service mesh (Istio, Linkerd) is a sidecar proxy (Envoy) next to every instance, forming a uniform network layer without touching application code.
 
@@ -899,7 +906,12 @@ THE MOTIVATING PROBLEM: In a single shared model (typical CRUD), the same schema
 
 WHAT CQRS IS NOT: NOT simply "use a DTO for reads and an entity for writes within one service" — that's smaller-scale and uncontroversial. Full CQRS usually means genuinely separate READ-SIDE STORES (sometimes a separate deployable "query service") kept in sync via events the write side publishes.
 
-HOW THE SYNC WORKS: Command side processes a command → validates → persists to its own store → publishes a domain event → one or more READ-SIDE PROJECTIONS subscribe and update their own denormalized store(s) (Elasticsearch for search, Redis for fast lookups, a reporting-optimized SQL schema, etc.).
+HOW THE SYNC WORKS:
+1. Command side processes a command
+2. Validates
+3. Persists to its own store
+4. Publishes a domain event
+5. One or more READ-SIDE PROJECTIONS subscribe and update their own denormalized store(s) (Elasticsearch for search, Redis for fast lookups, a reporting-optimized SQL schema, etc.)
 
 EXAMPLE: See the code panel — a command service that validates and publishes order.placed, two independent projections (Redis for fast lookup, Elasticsearch for search) that subscribe to it, and a read-your-own-writes mitigation that returns the just-written object directly instead of re-querying the read side.
 
@@ -1296,7 +1308,13 @@ const { validateJWT } = require('@company/auth-lib'); // used identically by bot
 EXPLANATION:
 BLUE-GREEN DEPLOYMENT: BLUE (currently live) and GREEN (new version, fully deployed but idle) run side by side. Once GREEN is verified, you switch the router to send 100% of traffic to GREEN at once. BLUE stays running as an instant rollback target (just flip the switch back, no redeploy).
 
-CANARY DEPLOYMENT: Roll out to a small subset (e.g. 5%) first, monitor error rates/latency/business metrics, and gradually increase (5% → 25% → 50% → 100%) if healthy. A problem at any stage only affects that small subset, and rollback means routing back to 0%.
+CANARY DEPLOYMENT: Roll out to a small subset (e.g. 5%) first, monitor error rates/latency/business metrics, and gradually increase if healthy:
+1. 5%
+2. 25%
+3. 50%
+4. 100%
+
+A problem at any stage only affects that small subset, and rollback means routing back to 0%.
 
 ROLLING DEPLOYMENT: Replace old-version instances with new-version instances gradually, one or a small batch at a time — no separate second environment. This is Kubernetes' DEFAULT Deployment update strategy.
 

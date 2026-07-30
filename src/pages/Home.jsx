@@ -340,7 +340,7 @@ export default function Home() {
           ease: 'power2.out',
           scrollTrigger: {
             trigger: progressRef.current,
-            start: 'top 80%',
+            start: 'top 95%',
             toggleActions: 'play none none none'
           }
         });
@@ -355,7 +355,7 @@ export default function Home() {
           ease: 'power2.out',
           scrollTrigger: {
             trigger: libraryRef.current,
-            start: 'top 75%',
+            start: 'top 95%',
             toggleActions: 'play none none none'
           }
         });
