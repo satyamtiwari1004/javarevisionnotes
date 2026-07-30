@@ -902,7 +902,7 @@ export default function RevisionNotesLayout({
                                 <div>
                                   {/* Multi-Tab Switcher for annotations or complex properties */}
                                   {item.theory && item.desc && (
-                                    <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+                                    <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: 16, padding: 8, flexWrap: 'wrap', gap: 8 }}>
                                       {[['theory', '📖 Theory', '#38bdf8'], ['code', '💻 Code', '#10b981']].map(([t, label, tc]) => {
                                         const curTab = activeTab[itemKey] || 'theory';
                                         const isTabActive = curTab === t;
