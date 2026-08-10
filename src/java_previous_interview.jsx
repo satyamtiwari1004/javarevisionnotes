@@ -1382,7 +1382,8 @@ description: Use whenever creating or editing Word documents...
 ## Instructions
 1. Always use python-docx, never write raw XML directly.
 2. Save output to /mnt/user-data/outputs.
-3. Use heading styles, not manually bolded text, for section titles.`
+3. Use heading styles, not manually bolded text, for section titles.
+`
       },
       {
         n: "Agentic workflow — what it means",
@@ -1412,10 +1413,827 @@ SYSTEM_PROMPT = ALL_DOCX_RULES + ALL_PPTX_RULES + ALL_XLSX_RULES + ALL_PDF_RULES
 // Efficient — skills loaded lazily, only when relevant
 availableSkills = [
   { name: "docx", description: "...", path: "/skills/docx/SKILL.md" },
-  { name: "pptx", description: "...", path: "/skills/pptx/SKILL.md" },
+  { name: "pptx", description: "...", path: "/skills/pptx/SKILL.md" }
 ];
 // Agent only reads docx/SKILL.md into context if the task is "write a Word doc"
-// -> pptx/xlsx/pdf skill content never touches the context window that turn`
+// -> pptx/xlsx/pdf skill content never touches the context window that turn
+`
+      }
+    ]
+  },
+  // ─────────────────────────────────────────────────────────────
+  // 08 AUG 2026 — New questions from today's session
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "HashSet Mutation & ConcurrentModificationException [08 Aug 2026]",
+    icon: "⚠",
+    color: "#EF4444",
+    desc: "Two classic Java trap questions: mutating a HashSet key after insertion, and the right ways to remove elements during iteration.",
+    topics: [
+      {
+        n: "HashSet with mutable key — what happens after st1.id = 2?",
+        tag: "AUG26",
+        desc: `RULE: NEVER mutate a field used in hashCode() while the object lives inside a HashSet or HashMap key. HashSet computes hashCode() ONCE at add() to choose the bucket. Mutating the field changes the logical hash but the object stays physically in the OLD bucket — it becomes a "ghost": present in size(), but impossible to find, remove, or contains() because any lookup recomputes the hash and looks in the WRONG bucket.
+
+WHAT HAPPENS STEP BY STEP:
+- st1 (id=1) → hashCode()=1 → Bucket 1
+- st2 (id=3) → hashCode()=3 → Bucket 3
+- st3 (id=2) → hashCode()=2 → Bucket 2   (different bucket, different id → added)
+- size() = 3 ✅
+
+After st1.id = 2:
+- st1 is physically still in Bucket 1, but hashCode() now returns 2
+- studentList.contains(st1) → looks in Bucket 2 → finds st3, not st1 → returns FALSE
+- studentList.remove(st1)  → looks in Bucket 2 → can't find st1 → FAILS (still in Bucket 1 as zombie)
+- studentList.add(st1)     → hashes to Bucket 2, equals() sees id=2 matches st3 → overwrites? No — adds again! → size becomes 4!
+- size() still = 3 because no add was called — the object is just unreachable
+
+FIX: make id final, or use immutable keys (String, Integer, UUID).`,
+        code: `Student st1 = new Student("Nimit", 1);   // hashCode = 1 → Bucket 1
+Student st2 = new Student("Rahul", 3);   // hashCode = 3 → Bucket 3
+Student st3 = new Student("Nimit", 2);   // hashCode = 2 → Bucket 2
+studentList.add(st1); studentList.add(st2); studentList.add(st3);
+System.out.println(studentList.size()); // 3 ✅
+
+st1.id = 2;   // ← mutation: hashCode() now returns 2 but st1 is STILL in Bucket 1
+
+System.out.println(studentList.size());         // 3 — ghost entry counts
+System.out.println(studentList.contains(st1)); // FALSE — looks in Bucket 2, misses
+studentList.remove(st1);                        // FAILS — can't find in Bucket 2
+// st1 is now an unreachable zombie — memory leak, wrong behaviour
+
+// ✅ Fix — make the key field final / immutable
+class Student {
+    public final int id;       // final → cannot be mutated after construction
+    public final String name;
+    public Student(String name, int id) { this.name = name; this.id = id; }
+    public int hashCode() { return this.id; }
+    public boolean equals(Object o) {
+        if (!(o instanceof Student)) return false;
+        return ((Student) o).id == this.id;
+    }
+}`
+      },
+      {
+        n: "ConcurrentModificationException — 5 safe removal approaches + ListIterator",
+        tag: "AUG26",
+        desc: `for-each loop uses an Iterator internally. Calling list.remove() directly during iteration increments the list's modCount but the iterator's expectedModCount stays at the snapshot value — the next call to iterator.next() detects the mismatch and throws ConcurrentModificationException (fail-fast).
+
+FIVE SAFE ALTERNATIVES:
+1. ListIterator.remove() — updates modCount internally, no mismatch.
+2. Iterator.remove() — same, simpler API than ListIterator.
+3. list.removeIf(predicate) — Java 8, cleanest one-liner, uses iterator internally.
+4. Stream filter into new list — functional, creates new list.
+5. Index loop backwards — avoid index-shift bug that forward loop suffers from.
+
+WHY BACKWARDS LOOP WORKS: after removing index i, the elements after i shift left by 1. Going backwards, every element you haven't visited yet has a lower index — unaffected by the removal.`,
+        code: `List<Integer> list = new ArrayList<>(List.of(10, 20, 30, 40));
+
+// ❌ WRONG — ConcurrentModificationException
+for (Integer num : list) {
+    if (num == 20) list.remove(num);  // modCount != expectedModCount -> boom
+}
+
+// ✅ Fix 1 — ListIterator (what the question asked)
+ListIterator<Integer> itr = list.listIterator();
+while (itr.hasNext()) {
+    Integer num = itr.next();
+    if (num == 20) itr.remove();  // updates modCount safely
+}
+System.out.println(list); // [10, 30, 40]
+
+// ✅ Fix 2 — Iterator
+Iterator<Integer> it = list.iterator();
+while (it.hasNext()) {
+    if (it.next() == 20) it.remove();
+}
+
+// ✅ Fix 3 — removeIf (Java 8, cleanest)
+list.removeIf(num -> num == 20);
+System.out.println(list); // [10, 30, 40]
+
+// ✅ Fix 4 — Stream filter into new list
+list = list.stream().filter(n -> n != 20).collect(Collectors.toList());
+
+// ✅ Fix 5 — backwards index loop (no index-shift bug)
+for (int i = list.size() - 1; i >= 0; i--) {
+    if (list.get(i) == 20) list.remove(i);
+}
+// Forward loop bug: remove index 1 -> elements shift -> index 2 is now old index 3 -> skips 30
+// Backwards: removal at i=1 doesn't affect any i < 1 we haven't visited yet`
+      }
+    ]
+  },
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Multithreading — Instance vs Static Synchronized [08 Aug 2026]",
+    icon: "⇄",
+    color: "#06B6D4",
+    desc: "Instance lock vs class lock — the most misunderstood synchronized scenario. Both threads print their message when one holds an instance lock and the other needs a class lock.",
+    topics: [
+      {
+        n: "synchronized instance method vs static synchronized method — output?",
+        tag: "AUG26",
+        desc: `synchronized on an INSTANCE method locks the object instance (the 'this' reference).
+synchronized on a STATIC method locks the Class object (MultiThreadHandle.class).
+
+These are TWO COMPLETELY SEPARATE MONITORS. They do NOT block each other.
+
+WHAT HAPPENS:
+- Thread 1 calls obj.test1() → acquires lock on OBJ INSTANCE → prints "Inside Test1 Method" → enters infinite sleep (never releases obj lock).
+- Thread 2 calls obj.test2() → tries to acquire lock on CLASS OBJECT (MultiThreadHandle.class) → obj lock is completely unrelated → Thread 2 does NOT wait → acquires class lock immediately → prints "Inside Test2 Method" → enters infinite sleep.
+
+OUTPUT: both lines print, then the program hangs forever (both threads sleeping Long.MAX_VALUE).
+
+WHEN WOULD THREAD 2 BLOCK?
+- Both methods are instance synchronized → both try to lock 'obj' → Thread 2 blocks.
+- Both methods are static synchronized → both try to lock the class → Thread 2 blocks.
+- One instance, one static (your code) → different monitors → BOTH RUN.`,
+        code: `class MultiThreadHandle {
+    public synchronized void test1() {        // locks: this (obj instance)
+        System.out.println("Inside Test1 Method");
+        while (true) { Thread.sleep(Long.MAX_VALUE); }
+    }
+    public static synchronized void test2() { // locks: MultiThreadHandle.class
+        System.out.println("Inside Test2 Method");
+        while (true) { Thread.sleep(Long.MAX_VALUE); }
+    }
+}
+
+MultiThreadHandle obj = new MultiThreadHandle();
+executor.execute(() -> obj.test1()); // Thread 1 → acquires INSTANCE lock on obj
+executor.execute(() -> obj.test2()); // Thread 2 → acquires CLASS lock → DIFFERENT MONITOR
+
+// OUTPUT (both print — they never contend):
+// Inside Test1 Method
+// Inside Test2 Method
+// (program hangs forever — both sleep Long.MAX_VALUE)
+
+// Monitor matrix — what blocks what:
+// Thread 1 holds INSTANCE lock | Thread 2 needs INSTANCE lock → BLOCKS
+// Thread 1 holds CLASS lock    | Thread 2 needs CLASS lock    → BLOCKS
+// Thread 1 holds INSTANCE lock | Thread 2 needs CLASS lock    → BOTH RUN ← your case
+// Thread 1 holds CLASS lock    | Thread 2 needs INSTANCE lock → BOTH RUN`
+      }
+    ]
+  },
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "SQL — Student Marks Noticeboard [08 Aug 2026]",
+    icon: "🗄",
+    color: "#F59E0B",
+    desc: "GROUP BY + SUM + ORDER BY — print total marks per student in descending order. Includes window function extensions and Java Stream equivalent.",
+    topics: [
+      {
+        n: "Total marks per student, descending — GROUP BY + SUM + ORDER BY",
+        tag: "AUG26",
+        desc: `The core query groups rows by student name, sums their marks, and orders by the aggregate descending.
+
+KEY CONCEPTS:
+- GROUP BY collapses all rows sharing the same name into one output row.
+- SUM(marks) aggregates the marks column for each group.
+- ORDER BY totalmarks DESC sorts the result — you can reference the alias in ORDER BY (standard SQL, supported by MySQL/PostgreSQL).
+- HAVING (not needed here) filters AFTER grouping — WHERE filters BEFORE grouping.
+
+WHERE vs HAVING: "WHERE marks > 50" eliminates individual subject rows before grouping. "HAVING SUM(marks) > 200" eliminates groups after aggregation.
+
+EXTENSIONS:
+- Add RANK() OVER (...) to include position numbers without a separate query.
+- Use CASE WHEN for a pivot (each subject as its own column).
+- Wrap in a subquery with HAVING to filter only students above average total.`,
+        code: `-- Table: Student(Name, Subject, Marks)
+-- Rama Math 50 | Rama Physics 60 | Rama English 45
+-- Hari Math 70  | Hari Physics 65 | Hari English 85
+-- Gita Math 90  | Gita Physics 55 | Gita English 80
+
+-- ✅ Core query
+SELECT name, SUM(marks) AS totalmarks
+FROM student
+GROUP BY name
+ORDER BY totalmarks DESC;
+-- OUTPUT:
+-- Gita  225   (90+55+80)
+-- Hari  220   (70+65+85)
+-- Rama  155   (50+60+45)
+
+-- With rank position
+SELECT
+    RANK() OVER (ORDER BY SUM(marks) DESC) AS rank,
+    name,
+    SUM(marks) AS totalmarks
+FROM student
+GROUP BY name
+ORDER BY totalmarks DESC;
+-- 1  Gita  225
+-- 2  Hari  220
+-- 3  Rama  155
+
+-- Pivot — each subject as its own column
+SELECT name,
+    SUM(CASE WHEN subject='Math'    THEN marks END) AS math,
+    SUM(CASE WHEN subject='Physics' THEN marks END) AS physics,
+    SUM(CASE WHEN subject='English' THEN marks END) AS english,
+    SUM(marks) AS total
+FROM student GROUP BY name ORDER BY total DESC;
+
+-- Only students above average total (avg = 200)
+SELECT name, SUM(marks) AS totalmarks FROM student
+GROUP BY name
+HAVING SUM(marks) > (SELECT AVG(t) FROM (SELECT SUM(marks) AS t FROM student GROUP BY name) sub)
+ORDER BY totalmarks DESC;
+
+// Java Stream equivalent
+Map<String, Integer> result = students.stream()
+    .collect(Collectors.groupingBy(Student::getName, Collectors.summingInt(Student::getMarks)))
+    .entrySet().stream()
+    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+    .collect(Collectors.toMap(
+        Map.Entry::getKey, Map.Entry::getValue,
+        (e1, e2) -> e1, LinkedHashMap::new  // preserve sorted order
+    ));
+result.forEach((name, total) -> System.out.println(name + "\t" + total));
+// Gita    225
+// Hari    220
+// Rama    155`
+      }
+    ]
+  },
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Hashtable, Spring Boot Startup & FutureTask [08 Aug 2026]",
+    icon: "☕",
+    color: "#22C55E",
+    desc: "Hashtable internals vs HashMap/ConcurrentHashMap, the complete Spring Boot main() startup sequence, and the FutureTask/CompletableFuture/ScheduledFuture concurrency class family.",
+    topics: [
+      {
+        n: "Hashtable — internals, null handling, and why it's obsolete",
+        tag: "AUG26",
+        desc: `Hashtable is a legacy thread-safe Map from Java 1.0. Every public method — get(), put(), remove(), containsKey(), even read operations — acquires a lock on the ENTIRE table object. This means Thread 1 doing get("key1") blocks Thread 2 trying to get("key2"), even though they touch completely different buckets. That's why Hashtable is obsolete for concurrent use.
+
+INTERNAL DIFFERENCES FROM HASHMAP:
+- Hash function: uses (hash & 0x7FFFFFFF) % capacity — modulo, not bitwise AND. Capacity need not be a power of 2.
+- Default capacity: 11 (not 16).
+- No null keys or null values — throws NullPointerException explicitly in put().
+- Extends Dictionary (legacy abstract class from Java 1.0), not AbstractMap.
+- Iterator is fail-fast; also exposes legacy Enumeration via keys() / elements().
+
+VS CONCURRENTHASHMAP (Java 5+):
+ConcurrentHashMap allows lock-free reads (volatile) and locks only the FIRST NODE of the affected bucket for writes (CAS for empty bucket, synchronized on head node for non-empty). Different buckets write in full parallel — far superior concurrency vs Hashtable's all-or-nothing approach.
+
+USE TODAY: never use Hashtable. Use HashMap (single-threaded), ConcurrentHashMap (multi-threaded).`,
+        code: `// Hashtable — every method synchronized on 'this' (the whole table)
+Hashtable<String, Integer> table = new Hashtable<>();
+table.put(null, 1);      // ❌ NullPointerException — explicitly checked in put()
+table.put("key", null);  // ❌ NullPointerException
+
+// Thread 1: table.get("k1") → locks ENTIRE table
+// Thread 2: table.get("k2") → BLOCKS even though touching a different bucket!
+
+// ConcurrentHashMap — much better
+ConcurrentHashMap<String, Integer> map = new ConcurrentHashMap<>();
+map.put(null, 1);   // ❌ still no nulls
+// Thread 1: map.get("k1") → lock-free volatile read
+// Thread 2: map.get("k2") → lock-free volatile read — SIMULTANEOUS ✅
+// Thread 1: map.put("k1", v) → CAS / locks only bucket for k1
+// Thread 2: map.put("k2", v) → CAS / locks only bucket for k2 — PARALLEL ✅
+
+// Feature comparison
+// Feature              | HashMap   | Hashtable        | ConcurrentHashMap
+// Thread-safe          | No        | Yes (full lock)  | Yes (bucket lock)
+// Null key/value       | 1 null ok | None allowed     | None allowed
+// Performance          | Fastest   | Slowest          | Best concurrent
+// Lock level           | None      | Entire table     | Bucket / node
+// Iterator             | Fail-fast | Fail-fast        | Fail-safe
+// Legacy?              | No        | Yes (Java 1.0)   | No (Java 5+)
+// Default capacity     | 16        | 11               | 16
+// Hash formula         | h^(h>>>16)| (h&0x7FFF)%cap  | h^(h>>>16)`
+      },
+      {
+        n: "Spring Boot main() — complete startup sequence, all 8 phases",
+        tag: "AUG26",
+        desc: `When you call SpringApplication.run(MyApplication.class, args), Spring Boot goes through 8 distinct phases before your app serves its first request. Understanding these phases explains why startup is slow, what @PostConstruct fires after, and why lazy-initialization helps.
+
+PHASE 1 — Create SpringApplication: detect app type (SERVLET / REACTIVE / NONE) by checking if DispatcherServlet / DispatcherHandler is on classpath. Load ApplicationContextInitializers and ApplicationListeners from spring.factories.
+
+PHASE 2 — Run + Banner: start StopWatch, notify run listeners, print the ASCII Spring banner.
+
+PHASE 3 — Prepare Environment: build ConfigurableEnvironment, load property sources in PRIORITY ORDER: (1) CLI args --server.port=8081, (2) System properties -Dserver.port=8081, (3) OS env vars SERVER_PORT=8081, (4) application.yml / .properties, (5) defaults. Activate @Profile.
+
+PHASE 4 — Create ApplicationContext: instantiate AnnotationConfigServletWebServerApplicationContext (web) or AnnotationConfigApplicationContext (non-web).
+
+PHASE 5 — Prepare ApplicationContext: @ComponentScan finds all @Component/@Service/@Repository/@Controller. @EnableAutoConfiguration reads ~150 auto-config classes from spring/autoconfigure.imports, each checked with @ConditionalOnClass / @ConditionalOnMissingBean. All bean DEFINITIONS registered (not yet instantiated).
+
+PHASE 6 — Refresh (most expensive): BeanFactoryPostProcessors run (@PropertySource, @Value resolved), BeanPostProcessors registered (AOP proxy creators), then ALL singleton beans instantiated EAGERLY (constructor, @Autowired injection, @PostConstruct, AOP proxy wrapping). ContextRefreshedEvent published. CommandLineRunner / ApplicationRunner beans called.
+
+PHASE 7 — Start Web Server: embedded Tomcat/Jetty/Undertow starts, DispatcherServlet registered, all @RequestMapping routes mapped.
+
+PHASE 8 — Ready: ApplicationStartedEvent and ApplicationReadyEvent published. StopWatch logs "Started in X seconds."`,
+        code: `@SpringBootApplication  // = @Configuration + @EnableAutoConfiguration + @ComponentScan
+public class MyApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MyApplication.class, args);
+        // Phase 1: detect SERVLET app (DispatcherServlet on classpath)
+        // Phase 2: print banner, start timer
+        // Phase 3: load application.yml, activate profiles
+        // Phase 4: create AnnotationConfigServletWebServerApplicationContext
+        // Phase 5: scan @Component/@Service + run ~150 AutoConfiguration classes
+        // Phase 6: instantiate all singletons, run @PostConstruct, create AOP proxies
+        // Phase 7: start embedded Tomcat, map @RequestMapping routes
+        // Phase 8: log "Started MyApplication in 3.2 seconds"
+    }
+}
+
+// @PostConstruct — fires in Phase 6, AFTER injection, BEFORE Tomcat starts
+@Service
+public class RuleService {
+    @Autowired RuleRepository repo;
+    @PostConstruct
+    public void init() { loadRulesFromDatabase(); } // pre-warm cache before traffic
+}
+
+// ApplicationRunner — fires in Phase 6 (end), AFTER Tomcat is up
+@Component
+public class DataLoader implements ApplicationRunner {
+    @Override
+    public void run(ApplicationArguments args) { verifyConnections(); }
+}
+
+// Speed up startup — lazy initialization (beans created on first use)
+// application.yml
+// spring.main.lazy-initialization: true
+// Effect: startup 3.2s -> 0.8s | trade-off: first request is slower
+
+// Property source priority (highest to lowest):
+// 1. --server.port=8081        (CLI arg)
+// 2. -Dserver.port=8081        (JVM system property)
+// 3. SERVER_PORT=8081           (OS environment variable)
+// 4. application.yml           (config file)
+// 5. @PropertySource defaults`
+      },
+      {
+        n: "FutureTask, Future, CompletableFuture, ScheduledFuture — the full family",
+        tag: "AUG26",
+        desc: `The Java concurrency class hierarchy for async results:
+
+Runnable → run(), no return, no checked exception.
+Callable<V> → call(), returns V, can throw Exception.
+Future<V> → a handle to an async result. Methods: get() (blocking), get(timeout), isDone(), isCancelled(), cancel().
+FutureTask<V> → implements BOTH Runnable AND Future. Can be submitted to an Executor OR run directly on a Thread. Uses volatile state field (NEW/COMPLETING/NORMAL/EXCEPTIONAL/CANCELLED) and LockSupport.park() for blocking — no spinning.
+CompletableFuture<V> → Future + non-blocking callbacks + pipeline composition. supplyAsync runs in ForkJoinPool; thenApply/thenCompose chain transforms; exceptionally handles errors; allOf/anyOf combine multiple futures. The modern standard.
+ScheduledFuture<V> → Future for delayed or periodic tasks via ScheduledExecutorService.
+
+scheduleAtFixedRate: runs every N seconds regardless of task duration (may overlap if task takes longer than period).
+scheduleWithFixedDelay: waits N seconds AFTER the task finishes before starting the next one — no overlap.`,
+        code: `// Future — basic async result
+ExecutorService pool = Executors.newFixedThreadPool(4);
+Future<Integer> future = pool.submit(() -> { Thread.sleep(2000); return 42; });
+System.out.println("Doing other work...");
+Integer result = future.get();               // blocks until done
+Integer result2 = future.get(3, TimeUnit.SECONDS); // with timeout
+future.cancel(true);  // true = interrupt if running
+
+// FutureTask — Runnable + Future in one
+FutureTask<String> task = new FutureTask<>(() -> "Result from FutureTask");
+new Thread(task).start();          // run on plain Thread (FutureTask IS Runnable)
+String r = task.get();             // FutureTask IS a Future too
+// OR: pool.submit(task);
+
+// CompletableFuture — modern non-blocking pipeline
+CompletableFuture.supplyAsync(() -> fetchNetworkData())   // runs in ForkJoinPool
+    .thenApply(data -> parseKPIs(data))                   // transform
+    .thenCompose(kpis -> callTicketApi(kpis))             // flatMap another CF
+    .exceptionally(ex -> { log.error(ex); return "DEFAULT"; })
+    .thenAccept(System.out::println);
+
+// Combine two parallel futures
+CompletableFuture<String> sites = CompletableFuture.supplyAsync(() -> getSites());
+CompletableFuture<String> kpis  = CompletableFuture.supplyAsync(() -> getKPIs());
+sites.thenCombine(kpis, (s, k) -> s + " | " + k).thenAccept(System.out::println);
+
+CompletableFuture.allOf(sites, kpis).join(); // wait for ALL
+CompletableFuture.anyOf(sites, kpis).get();  // wait for FIRST
+
+// ScheduledFuture — delayed / periodic tasks
+ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+scheduler.schedule(() -> System.out.println("once after 5s"), 5, TimeUnit.SECONDS);
+// Fixed RATE — every 30s from start (may overlap)
+scheduler.scheduleAtFixedRate(() -> pollSites(), 0, 30, TimeUnit.SECONDS);
+// Fixed DELAY — 30s after each run finishes (no overlap)
+scheduler.scheduleWithFixedDelay(() -> processRules(), 0, 30, TimeUnit.SECONDS);
+
+// Class/Interface | Return | Exception | Key feature
+// Runnable        | void   | No        | Basic fire-and-forget
+// Callable<V>     | V      | Yes       | Returns a value
+// Future<V>       | V      | Yes       | Handle to async result (blocking get)
+// FutureTask<V>   | V      | Yes       | Runnable + Future combined
+// CompletableFuture<V>| V  | Yes       | Non-blocking callbacks + pipeline
+// ScheduledFuture<V>  | V  | Yes       | Delayed or periodic execution`
+      }
+    ]
+  },
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Batch Optimization, REST API Design & DB Indexing [08 Aug 2026]",
+    icon: "⚡",
+    color: "#8B5CF6",
+    desc: "Slow batch job fix (computeIfAbsent + parallel streams), API versioning strategies, REST principles, query optimization, JOIN optimization, and index types.",
+    topics: [
+      {
+        n: "Slow route map builder — computeIfAbsent, groupingByConcurrent, pre-sizing",
+        tag: "AUG26",
+        desc: `The original code had THREE performance problems:
+1. containsKey() + get() = 2 HashMap lookups per route (100K configs × 10 routes = 2M extra lookups).
+2. No pre-sizing — HashMap rehashes multiple times as it fills.
+3. Single-threaded — wastes multiple cores available at nightly batch time.
+
+FIX 1 — computeIfAbsent: performs ONE lookup (get-or-create-then-put in a single hash computation). Only creates the ArrayList if the key is absent.
+FIX 2 — Pre-size the HashMap: new HashMap<>(configs.size() * 2) avoids all rehashing if the number of switches ≈ configs.size().
+FIX 3 — parallelStream + groupingByConcurrent: splits the flatMap work across ForkJoinPool threads. groupingByConcurrent uses ConcurrentHashMap internally — thread-safe without external locking.`,
+        code: `// ❌ SLOW — 2 lookups per route, no pre-sizing, single-threaded
+public Map<String, List<Route>> buildRouteMap(List<SwitchConfig> configs) {
+    Map<String, List<Route>> map = new HashMap<>();
+    for (SwitchConfig sc : configs) {
+        for (Route r : sc.getRoutes()) {
+            if (!map.containsKey(sc.getSwitchId())) {      // lookup 1
+                map.put(sc.getSwitchId(), new ArrayList<>()); // lookup 2 + alloc
+            }
+            map.get(sc.getSwitchId()).add(r);              // lookup 3!
+        }
+    }
+    return map;
+}
+
+// ✅ Fix 1 — computeIfAbsent (single lookup, creates list only if absent)
+public Map<String, List<Route>> buildRouteMap(List<SwitchConfig> configs) {
+    Map<String, List<Route>> map = new HashMap<>(configs.size() * 2); // pre-sized
+    for (SwitchConfig sc : configs) {
+        for (Route r : sc.getRoutes()) {
+            map.computeIfAbsent(sc.getSwitchId(), k -> new ArrayList<>()).add(r);
+        }
+    }
+    return map;
+}
+
+// ✅ Fix 2 — Stream + groupingBy (clean, functional)
+public Map<String, List<Route>> buildRouteMap(List<SwitchConfig> configs) {
+    return configs.stream()
+        .flatMap(sc -> sc.getRoutes().stream().map(r -> Map.entry(sc.getSwitchId(), r)))
+        .collect(Collectors.groupingBy(
+            Map.Entry::getKey,
+            Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+        ));
+}
+
+// ✅ Fix 3 — parallelStream + groupingByConcurrent (best for nightly batch)
+public Map<String, List<Route>> buildRouteMap(List<SwitchConfig> configs) {
+    return configs.parallelStream()          // ForkJoinPool splits the work
+        .flatMap(sc -> sc.getRoutes().stream().map(r -> Map.entry(sc.getSwitchId(), r)))
+        .collect(Collectors.groupingByConcurrent(  // ConcurrentHashMap — thread-safe
+            Map.Entry::getKey,
+            Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+        ));
+}
+// Performance on 100K configs × 10 routes = 1M routes:
+// Original:  2M HashMap lookups, single thread, ~3 rehashes
+// Fix 1:     1M lookups, single thread, 0 rehashes
+// Fix 3:     1M lookups across N CPU cores, 0 rehashes — fastest`
+      },
+      {
+        n: "API Versioning — 4 strategies with trade-offs",
+        tag: "AUG26",
+        desc: `WHY VERSION: without versioning, any breaking change (renaming a field, changing a type, restructuring a response) instantly breaks all existing clients. Versioning lets old and new clients coexist.
+
+STRATEGY 1 — URI Versioning (/api/v1/users): most common, cacheable, easy to route, easy to test in browser. Downside: URL should identify a resource, not a version — REST purists disagree. Used by Stripe, Twitter, GitHub REST.
+
+STRATEGY 2 — Request Header (API-Version: 2): clean URLs, REST-compliant. Downside: can't test in browser, often stripped by proxies, needs Vary header for caching. Used by Microsoft Azure.
+
+STRATEGY 3 — Accept Header (application/vnd.myapp.v2+json): truly REST-compliant content negotiation. Very verbose, hard to test, complex on clients. Used by GitHub (their preferred approach).
+
+STRATEGY 4 — Query Parameter (?version=2): easy to test but semantically wrong (query params are for filtering resources, not selecting a version). Avoid.
+
+DEPRECATION PATTERN: keep v1 alive, add response headers Deprecation: true and Sunset: 2026-12-31 + Link: /api/v2/... so clients know when to migrate.`,
+        code: `// Strategy 1 — URI versioning (most common)
+@GetMapping("/api/v1/users/{id}") public UserV1Response getUserV1(...) {}
+@GetMapping("/api/v2/users/{id}") public UserV2Response getUserV2(...) {}
+
+// Strategy 2 — Header versioning
+@GetMapping(value="/api/users/{id}", headers="API-Version=2")
+public UserV2Response getUser(...) {}
+
+// Strategy 3 — Accept header (content negotiation)
+@GetMapping(value="/api/users/{id}", produces="application/vnd.myapp.v2+json")
+public UserV2Response getUser(...) {}
+
+// Strategy 4 — Query param (avoid)
+@GetMapping("/api/users/{id}") // GET /api/users/1?version=2
+public Object getUser(@PathVariable Long id, @RequestParam(defaultValue="1") int version) {}
+
+// Deprecation headers — signal v1 end-of-life to clients
+@GetMapping("/api/v1/users/{id}")
+public ResponseEntity<UserV1Response> getUserV1(@PathVariable Long id) {
+    return ResponseEntity.ok()
+        .header("Deprecation", "true")
+        .header("Sunset", "2026-12-31")           // when v1 dies
+        .header("Link", "/api/v2/users/" + id)   // where to migrate
+        .body(userService.getUserV1(id));
+}`
+      },
+      {
+        n: "REST API design principles — 6 constraints + status codes + pagination",
+        tag: "AUG26",
+        desc: `REST has 6 architectural constraints. The ones most tested in interviews:
+
+1. RESOURCE-BASED URLS (nouns not verbs): /tickets not /getTickets, /tickets/1 not /deleteTicket?id=1.
+2. CORRECT HTTP VERBS: GET (safe + idempotent, read), POST (create, NOT idempotent), PUT (full replace, idempotent), PATCH (partial update), DELETE (idempotent).
+3. STATELESS: no server-side session — each request must be self-contained (auth via JWT in header, not session cookie).
+4. CORRECT STATUS CODES: 200 OK, 201 Created (include Location header), 204 No Content (DELETE), 400 Bad Request (validation), 401 Unauthorized (no token), 403 Forbidden (has token, no permission), 404 Not Found, 409 Conflict, 429 Too Many Requests, 500 Internal Server Error.
+5. CONSISTENT ERROR RESPONSE: never return a plain string on error — always structured JSON with timestamp, status, message, path, traceId.
+6. PAGINATION: never return unbounded lists — always page=0&size=20&sort=createdAt,desc, response includes totalElements/totalPages.
+
+IDEMPOTENT means: calling the same operation N times produces the same result as calling it once. GET/PUT/DELETE are idempotent. POST is NOT (two POSTs create two resources). Important for retry logic.`,
+        code: `// Resource-based URLs — nouns, not verbs
+// ❌ /getTicket/1   /createTicket   /deleteTicket/1
+// ✅ GET /tickets/1  POST /tickets   DELETE /tickets/1
+
+// Global error response format
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        String msg = ex.getBindingResult().getFieldErrors().stream()
+            .map(e -> e.getField() + ": " + e.getDefaultMessage())
+            .collect(Collectors.joining(", "));
+        return ResponseEntity.badRequest()
+            .body(new ErrorResponse(400, msg, "/api/tickets", UUID.randomUUID().toString()));
+    }
+}
+// Error JSON: { "status":400, "message":"priority: must not be null",
+//               "path":"/api/tickets", "traceId":"abc-123", "timestamp":"..." }
+
+// Pagination — Spring Data
+@GetMapping("/tickets")
+public Page<TicketDTO> getTickets(
+    @RequestParam(defaultValue="0")  int page,
+    @RequestParam(defaultValue="20") int size,
+    @RequestParam(defaultValue="createdAt") String sort) {
+    return ticketService.getTickets(PageRequest.of(page, size, Sort.by(sort).descending()));
+}
+// Response: { "content":[...], "page":0, "size":20,
+//             "totalElements":1547, "totalPages":78, "last":false }
+
+// Status codes cheat sheet
+// 200 OK          — GET/PUT/PATCH success
+// 201 Created     — POST success + Location: /tickets/123 header
+// 204 No Content  — DELETE success (no body)
+// 400 Bad Request — validation failure
+// 401 Unauthorized— no/bad token
+// 403 Forbidden   — authenticated but no permission
+// 404 Not Found   — resource doesn't exist
+// 409 Conflict    — duplicate resource / optimistic lock conflict
+// 429 Too Many    — rate limit hit
+// 500 Server Error— unexpected crash`
+      },
+      {
+        n: "DB query optimization, JOIN optimization, and index types",
+        tag: "AUG26",
+        desc: `QUERY OPTIMIZATION — the 5-step process:
+1. EXPLAIN ANALYZE: read Seq Scan as "missing index", check estimated vs actual rows (big mismatch = stale stats, run ANALYZE).
+2. SELECT only needed columns — avoid SELECT * especially on tables with TEXT/BLOB columns.
+3. Avoid functions on indexed columns — WHERE YEAR(created_at)=2025 prevents index use; WHERE created_at >= '2025-01-01' AND < '2026-01-01' uses the index.
+4. Paginate large result sets — never return 1M rows.
+5. Fix N+1 with JOIN FETCH / @EntityGraph.
+
+JOIN OPTIMIZATION:
+- Always index foreign key columns — without an index on tickets.dept_id, JOIN departments requires a full scan of departments for every ticket row.
+- Filter before joining: use a subquery or CTE to narrow the left table BEFORE the JOIN — fewer rows = cheaper join.
+- Avoid OR in JOIN conditions — use UNION instead (each branch can use its index separately).
+
+INDEX TYPES:
+- B-Tree (default): equality and range queries (=, <, >, BETWEEN, LIKE 'prefix%').
+- Composite index: multi-column — LEADING COLUMN RULE: index(A,B) works for WHERE A=? and WHERE A=? AND B=?, but NOT WHERE B=? alone.
+- Partial index: index only a subset — CREATE INDEX ... WHERE status='OPEN' — much smaller, faster, less write overhead.
+- Covering index: INCLUDE all columns the query selects — query satisfied entirely from index, never touches main table.
+- CREATE INDEX CONCURRENTLY: adds index with no write lock — essential for production tables.`,
+        code: `-- Step 1: always start here
+EXPLAIN ANALYZE
+SELECT t.id, t.title, d.name FROM tickets t
+JOIN departments d ON t.dept_id = d.id
+WHERE t.status = 'OPEN' AND t.created_at > NOW() - INTERVAL '7 days';
+-- Seq Scan on large table? → missing index
+-- Nested Loop with many rows? → missing join index
+-- Rows=100 estimated, actual=50000? → stale stats, run ANALYZE tickets
+
+-- Step 2: avoid functions on indexed columns
+-- ❌ WHERE YEAR(created_at) = 2025       → can't use index
+-- ✅ WHERE created_at >= '2025-01-01' AND created_at < '2026-01-01'
+
+-- Index types
+CREATE INDEX idx_tickets_status ON tickets(status);          -- B-Tree, equality/range
+
+CREATE INDEX idx_tickets_status_created ON tickets(status, created_at); -- composite
+-- Works for: WHERE status = ?
+-- Works for: WHERE status = ? AND created_at > ?
+-- FAILS for: WHERE created_at > ?     (no leading column match)
+
+CREATE INDEX idx_tickets_open ON tickets(created_at)
+WHERE status = 'OPEN';            -- partial index — tiny, fast, low write cost
+
+CREATE INDEX idx_tickets_cover ON tickets(status, created_at)
+INCLUDE (id, title, priority);    -- covering index — query never touches main table
+
+CREATE INDEX CONCURRENTLY idx_safe ON tickets(dept_id); -- no write lock, prod-safe
+
+-- JOIN optimization: filter BEFORE joining
+-- ❌ join everything then filter
+SELECT * FROM tickets t JOIN departments d ON t.dept_id = d.id
+WHERE t.status = 'OPEN' AND t.created_at > '2025-01-01';
+
+-- ✅ narrow left table first, then join smaller result
+SELECT * FROM (
+    SELECT * FROM tickets WHERE status = 'OPEN' AND created_at > '2025-01-01'
+) t JOIN departments d ON t.dept_id = d.id;
+
+-- OR in JOIN → UNION (each branch uses its own index)
+-- ❌ JOIN ON t.assignee_id = u.id OR t.reporter_id = u.id   (no index usage)
+-- ✅
+SELECT * FROM tickets t JOIN users u ON t.assignee_id = u.id
+UNION
+SELECT * FROM tickets t JOIN users u ON t.reporter_id = u.id;
+
+-- Check unused indexes (PostgreSQL) — drop them (they cost write overhead for nothing)
+SELECT indexname, idx_scan FROM pg_stat_user_indexes
+WHERE tablename = 'tickets' ORDER BY idx_scan ASC;`
+      }
+    ]
+  },
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Equilibrium Index & Wiggle Sort — Stream Solutions [08 Aug 2026]",
+    icon: "◐",
+    color: "#F97316",
+    desc: "Two live coding problems from an InterviewNinja assessment — iterative fix + Java 8 stream versions for both.",
+    topics: [
+      {
+        n: "Equilibrium Index (1-based) — iterative fix and stream version",
+        tag: "AUG26",
+        desc: `PROBLEM: find the first 1-based index where sum of elements BEFORE it equals sum of elements AFTER it.
+Array [2, 2, 5, 6, -2]: at index 3 (1-based) → left sum = 2+2 = 4, right sum = 6+(-2) = 4 ✅
+
+ORIGINAL CODE BUGS:
+1. Used a HashMap for prefix sums — unnecessary complexity, wrong key mapping.
+2. Missing the 1-based return (i + 1).
+3. containsKey(i-1) logic breaks when index 0 is the answer.
+
+CLEAN FIX: total sum computed once; iterate left to right keeping a running leftSum; rightSum = totalSum - leftSum - arr[i]; if equal return i+1.
+
+STREAM VERSION: IntStream.range cannot use a plain int leftSum in the lambda (must be effectively final). The standard workaround is a single-element int[] array which IS effectively final (the reference never changes, only the element inside it).`,
+        code: `// ✅ Iterative fix — O(n) time, O(1) space
+static int solve(int[] arr) {
+    int totalSum = Arrays.stream(arr).sum();
+    int leftSum = 0;
+    for (int i = 0; i < arr.length; i++) {
+        int rightSum = totalSum - leftSum - arr[i];
+        if (leftSum == rightSum) return i + 1;  // 1-based index
+        leftSum += arr[i];
+    }
+    return -1;
+}
+// Trace [2, 2, 5, 6, -2], total=13:
+// i=0: right=13-0-2=11,  left(0)==right(11)? NO   leftSum→2
+// i=1: right=13-2-2=9,   left(2)==right(9)?  NO   leftSum→4
+// i=2: right=13-4-5=4,   left(4)==right(4)?  YES  return 3 ✅
+
+// ✅ Stream version — stateful leftSum via int[] wrapper
+static int solveStream(int[] arr) {
+    int totalSum = Arrays.stream(arr).sum();
+    int[] leftSum = {0};  // effectively final reference, mutable content
+    return IntStream.range(0, arr.length)
+        .filter(i -> {
+            int rightSum = totalSum - leftSum[0] - arr[i];
+            boolean eq = leftSum[0] == rightSum;
+            leftSum[0] += arr[i];   // accumulate INSIDE filter — side effect
+            return eq;
+        })
+        .map(i -> i + 1)            // convert to 1-based
+        .findFirst()                // first equilibrium index
+        .orElse(-1);
+}
+// WHY int[] not plain int:
+// int leftSum = 0;
+// filter(i -> { leftSum += arr[i]; }) // ❌ "Variable used in lambda must be final"`
+      },
+      {
+        n: "Wiggle Sort (alternating high/low) — O(n) fix and stream version",
+        tag: "AUG26",
+        desc: `PROBLEM: given a sorted ascending array, rearrange so it alternates high-low-high-low. Input [1,2,3,4,5,6,7] → output [2,1,4,3,6,5,7].
+
+ORIGINAL ERROR: Time Limit Exceeded — solution was O(n²) or worse (likely nested loops or sorting inside the loop).
+
+THE O(n) INSIGHT: the array is ALREADY sorted, so arr[i+1] >= arr[i] always holds. Swapping adjacent pairs (positions 0↔1, 2↔3, 4↔5...) guarantees the higher of each pair lands at the even index. Each even-indexed element is always ≥ both its odd-indexed neighbours → wiggle property satisfied.
+
+STREAM VERSION: build a new array via IntStream.range — at even index i take arr[i+1] (the larger), at odd index i take arr[i-1] (the smaller). Last element stays if array length is odd. No mutation needed — purely functional index mapping.`,
+        code: `// ✅ Iterative fix — O(n) time, O(1) space (in-place swap)
+static int[] solve(int[] arr) {
+    for (int i = 0; i < arr.length - 1; i += 2) {
+        int temp = arr[i]; arr[i] = arr[i + 1]; arr[i + 1] = temp;
+    }
+    return arr;
+}
+// Trace [1,2,3,4,5,6,7]:
+// Swap (0,1): [2,1,3,4,5,6,7]
+// Swap (2,3): [2,1,4,3,5,6,7]
+// Swap (4,5): [2,1,4,3,6,5,7]
+// i=6: 6 >= length-1=6 → stop (7 stays in place)
+// Result: [2,1,4,3,6,5,7]  each even index > both neighbours ✅
+
+// ✅ Stream version — purely functional, no mutation
+static int[] solveStream(int[] arr) {
+    return IntStream.range(0, arr.length)
+        .map(i -> {
+            if (i % 2 == 0 && i + 1 < arr.length) return arr[i + 1]; // even → take next (larger)
+            if (i % 2 == 1)                         return arr[i - 1]; // odd  → take prev (smaller)
+            return arr[i]; // last element when array has odd length
+        })
+        .toArray();
+}
+// Trace [1,2,3,4,5,6,7]:
+// i=0 even → arr[1]=2  | i=1 odd → arr[0]=1
+// i=2 even → arr[3]=4  | i=3 odd → arr[2]=3
+// i=4 even → arr[5]=6  | i=5 odd → arr[4]=5
+// i=6 even, no i+1     → arr[6]=7
+// Result: [2,1,4,3,6,5,7] ✅
+
+// Key interview point — why stream needs a NEW array:
+// Stream.map() must be stateless and non-interfering.
+// Reading arr[i+1] while also writing arr[i] (in-place) would cause race conditions
+// in parallel streams. Functional approach reads original, writes new array — safe.`
+      }
+    ]
+  },
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Staging to Production Checklist [08 Aug 2026]",
+    icon: "🚀",
+    color: "#14B8A6",
+    desc: "Every layer you must verify before promoting a Spring Boot service from staging to production — code, config, DB, infrastructure, security, observability, performance, and release process.",
+    topics: [
+      {
+        n: "Complete staging → production go-live checklist",
+        tag: "AUG26",
+        desc: `This is a senior engineer question — they expect you to think across ALL layers, not just "tests pass."
+
+CODE & BUILD: all unit and integration tests green, JaCoCo coverage ≥ 80%, no compiler warnings, code review approved, no hardcoded values, no secrets in logs, artifact version is a release tag (not SNAPSHOT).
+
+CONFIGURATION: application-prod.yml points to production DB/cache/queues, connection pool sized for production load (not dev defaults), log level WARN/ERROR (not DEBUG), secrets in vault/secrets manager, rate limits and timeouts configured for production traffic, CORS restricted to production domains.
+
+DATABASE: migration scripts tested on staging with a copy of production-size data, migration is BACKWARD COMPATIBLE (old code still runs with new schema — add nullable columns first, never rename/drop in the same release as the code change), rollback script exists and tested, DB backup taken before migration, CONCURRENTLY keyword used for new indexes.
+
+INFRASTRUCTURE: deployment strategy chosen (rolling / blue-green / canary), /actuator/health returns UP before traffic is routed, graceful shutdown configured (server.shutdown=graceful + 30s timeout), Kubernetes resource requests and limits set, HPA configured.
+
+SECURITY: HTTPS enforced, security response headers set (CSP, X-Frame-Options, HSTS), Actuator endpoints secured (only /health public), OWASP dependency scan clean, no secrets in Git history.
+
+OBSERVABILITY: structured JSON logging, traceId in every log line, Prometheus metrics endpoint live, Grafana dashboards and ALERTS configured BEFORE go-live (error rate, p99 latency, heap, pod crash loops).
+
+PERFORMANCE: load tested at 2× peak traffic, no memory leaks under sustained load, GC behaviour acceptable.
+
+RELEASE PROCESS: no Friday deployments, rollback criteria defined upfront ("if error rate > 2% in first 10 min → auto rollback"), smoke tests automated, on-call engineer available, 30-min active watch post-deploy.`,
+        code: `// Backward-compatible DB migration — the most important rule
+// SAFE: add nullable column (old code ignores it, new code writes to it)
+ALTER TABLE tickets ADD COLUMN auto_closed BOOLEAN;                    -- deploy DB change
+// → deploy new code that reads/writes auto_closed
+// → later (next release): add NOT NULL constraint once all rows populated
+
+// UNSAFE: rename column and change code in same release
+// ALTER TABLE tickets RENAME COLUMN status TO ticket_status;          -- ❌
+// Old pods still running → query "WHERE status=?" → column gone → crash
+
+// Create index without locking production table
+CREATE INDEX CONCURRENTLY idx_tickets_status ON tickets(status);       -- no write lock ✅
+
+// Graceful shutdown — finish in-flight requests before pod dies
+// application.yml
+// server.shutdown: graceful
+// spring.lifecycle.timeout-per-shutdown-phase: 30s
+
+// Health check — Kubernetes only routes traffic AFTER this returns UP
+// GET /actuator/health
+// {"status":"UP","components":{"db":{"status":"UP"},"redis":{"status":"UP"}}}
+
+// Rollback — Kubernetes rolling deployment
+// kubectl rollout undo deployment/ticket-service
+// kubectl rollout status deployment/ticket-service
+
+// Smoke test immediately after deploy (automated)
+// curl -f https://api.prod.example.com/actuator/health
+// curl -f https://api.prod.example.com/api/v1/tickets?page=0&size=1
+// curl -f https://api.prod.example.com/api/v1/users/me  -H "Authorization: Bearer $TOKEN"
+
+// Alert thresholds to set BEFORE go-live
+// Error rate (5xx) > 1% for 5 minutes → page on-call
+// Response time p99 > 2 seconds        → alert
+// JVM heap > 85%                        → alert
+// Pod crash loop (restartCount > 3)     → immediate page
+// DB connection pool > 90% utilised     → warning`
       }
     ]
   }
@@ -1442,6 +2260,7 @@ const TAG_META = {
   MOCKITO:    { bg: "#0A2E1E", text: "#10B981", border: "#0C3D28" },
   QUICKFIRE:  { bg: "#2D1A4A", text: "#A855F7", border: "#3A2060" },
   AI:         { bg: "#0A3A36", text: "#14B8A6", border: "#0C4A44" },
+  AUG26:      { bg: "#1A0E3A", text: "#A78BFA", border: "#2A1A4A" },
 };
 
 export default function JavaInterviewPrep() {
