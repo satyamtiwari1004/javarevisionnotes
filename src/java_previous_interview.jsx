@@ -1382,8 +1382,7 @@ description: Use whenever creating or editing Word documents...
 ## Instructions
 1. Always use python-docx, never write raw XML directly.
 2. Save output to /mnt/user-data/outputs.
-3. Use heading styles, not manually bolded text, for section titles.
-`
+3. Use heading styles, not manually bolded text, for section titles.`
       },
       {
         n: "Agentic workflow — what it means",
@@ -1413,11 +1412,10 @@ SYSTEM_PROMPT = ALL_DOCX_RULES + ALL_PPTX_RULES + ALL_XLSX_RULES + ALL_PDF_RULES
 // Efficient — skills loaded lazily, only when relevant
 availableSkills = [
   { name: "docx", description: "...", path: "/skills/docx/SKILL.md" },
-  { name: "pptx", description: "...", path: "/skills/pptx/SKILL.md" }
+  { name: "pptx", description: "...", path: "/skills/pptx/SKILL.md" },
 ];
 // Agent only reads docx/SKILL.md into context if the task is "write a Word doc"
-// -> pptx/xlsx/pdf skill content never touches the context window that turn
-`
+// -> pptx/xlsx/pdf skill content never touches the context window that turn`
       }
     ]
   },
@@ -2234,6 +2232,801 @@ CREATE INDEX CONCURRENTLY idx_tickets_status ON tickets(status);       -- no wri
 // JVM heap > 85%                        → alert
 // Pod crash loop (restartCount > 3)     → immediate page
 // DB connection pool > 90% utilised     → warning`
+      }
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 11 AUG 2026 — Remove duplicates in-place, SQL aggregation
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "DSA — Remove Duplicates In-Place [11 Aug 2026]",
+    icon: "◐",
+    color: "#F97316",
+    desc: "Remove duplicates from a sorted array in-place, replacing trailing positions with null. Four approaches — two pointer, LinkedHashSet, Stream distinct(), and modified version to allow 1 duplicate.",
+    topics: [
+      {
+        n: "Remove duplicates from sorted array — 4 approaches without if/case",
+        tag: "AUG26",
+        desc: `PROBLEM: given a sorted array, remove duplicates in-place. Trailing positions become null.
+Input:  [2, 2]           → Output: [2, null]
+Input:  [1, 2, 2, 3, 4, 4] → Output: [1, 2, 3, 4, null, null]
+
+THE QUESTION: can we do it WITHOUT if/CASE?
+YES — three clean zero-conditional approaches:
+
+APPROACH 1 — LinkedHashSet: Set.add() silently ignores duplicates (returns false without throwing). LinkedHashSet preserves insertion order. Copy back — remaining positions stay null (Integer[] default).
+
+APPROACH 2 — Stream distinct(): internally uses a HashSet to track seen elements, filters the stream to only emit first occurrence of each value. System.arraycopy pastes unique values back. Remaining positions stay null.
+
+APPROACH 3 — Two Pointer (standard): write pointer j tracks last written position. Read pointer i scans forward. When arr[i] != arr[j] a new unique is found — advance j and write. No if for the null-filling — Integer[] initialises to null automatically.
+
+WHY i+=2 IN YOUR ORIGINAL CODE WAS WRONG: jumping by 2 skips elements entirely. For [1,2,2,3,4,4], i=0,2,4 misses index 1,3,5 and compares wrong pairs. Also comparing with arr[j] where j jumps by 2 means the reference point is always 2 behind — produces wrong results and ArrayIndexOutOfBoundsException.`,
+        code: `// ✅ Approach 1 — LinkedHashSet (zero conditionals, preserves order)
+static Integer[] removeDuplicates(int[] arr) {
+    Integer[] result = new Integer[arr.length]; // null by default
+    Set<Integer> seen = new LinkedHashSet<>();
+    for (int n : arr) seen.add(n); // duplicates silently ignored by Set
+    int i = 0;
+    for (int n : seen) result[i++] = n;
+    return result;
+}
+// Trace [1,2,2,3,4,4]:
+// seen.add(1)→{1}, add(2)→{1,2}, add(2)→{1,2}(ignored),
+// add(3)→{1,2,3}, add(4)→{1,2,3,4}, add(4)→ignored
+// result = [1, 2, 3, 4, null, null] ✅
+
+// ✅ Approach 2 — Stream distinct() (most elegant, zero conditionals)
+static Integer[] removeDuplicates(int[] arr) {
+    Integer[] result = new Integer[arr.length]; // null by default
+    Integer[] unique = Arrays.stream(arr)
+        .distinct()   // removes duplicates using HashSet internally — no if needed
+        .boxed()
+        .toArray(Integer[]::new);
+    System.arraycopy(unique, 0, result, 0, unique.length);
+    return result;
+}
+// [2,2]       → distinct → [2]       → result [2, null]        ✅
+// [1,2,2,3,4,4] → distinct → [1,2,3,4] → result [1,2,3,4,null,null] ✅
+
+// ✅ Approach 3 — Two Pointer (standard interview answer)
+static int removeDuplicates(int[] arr, int n) {
+    if (n == 0) return 0;
+    int j = 0; // last written position
+    for (int i = 1; i < n; i++) {
+        if (arr[i] != arr[j]) { // new unique element
+            j++;
+            arr[j] = arr[i];
+        }
+        // arr[i] == arr[j] → duplicate → do nothing (skip)
+    }
+    return j + 1; // new length
+}
+// Trace [1,2,2,3,4,4]:
+// j=0: i=1 arr[1]=2 != arr[0]=1 → j=1 arr[1]=2 → [1,2,2,3,4,4]
+//      i=2 arr[2]=2 == arr[1]=2 → skip
+//      i=3 arr[3]=3 != arr[1]=2 → j=2 arr[2]=3 → [1,2,3,3,4,4]
+//      i=4 arr[4]=4 != arr[2]=3 → j=3 arr[3]=4 → [1,2,3,4,4,4]
+//      i=5 arr[5]=4 == arr[3]=4 → skip
+// return 4, arr = [1,2,3,4,_,_] ✅
+
+// ❌ YOUR ORIGINAL CODE — why i+=2 was wrong
+static int removeDuplicates(int arr[], int n) {
+    int j = 0;
+    for (int i = 1; i < n; i += 2) { // ← skips elements! reads only odd indices
+        if (arr[i] != arr[j]) {
+            j += 2;                   // ← j also jumps 2 — wrong reference point
+            arr[j] = arr[i];          // ← ArrayIndexOutOfBoundsException for small arrays
+        }
+    }
+    return j + 1;
+}
+// Trace [1,2,2,3,4,4]: i=1→3→5, misses i=2,4 entirely
+// i=1: arr[1]=2 != arr[0]=1 → j=2, arr[2]=2
+// i=3: arr[3]=3 != arr[2]=2 → j=4, arr[4]=3
+// i=5: arr[5]=4 != arr[4]=3 → j=6 → OUT OF BOUNDS ❌`
+      },
+      {
+        n: "Allow 1 duplicate (keep at most 2 occurrences) — generic K version",
+        tag: "AUG26",
+        desc: `MODIFICATION: instead of removing ALL duplicates, allow each element to appear at most TWICE (allow 1 duplicate).
+
+THE KEY INSIGHT — only one line changes:
+- Keep 1: compare arr[i] with arr[j]   (last written)     → skip if equal
+- Keep 2: compare arr[i] with arr[j-1] (second-last written) → skip only if BOTH match
+
+WHY arr[j-1]? If arr[i] equals arr[j] but NOT arr[j-1], it's only the second occurrence — allow it. If arr[i] equals BOTH arr[j] and arr[j-1], it's a third occurrence — skip it.
+
+GENERIC K VERSION: compare arr[i] with arr[j-(k-1)]. For k=1 (keep 1): arr[j-(0)] = arr[j]. For k=2 (keep 2): arr[j-(1)] = arr[j-1]. For k=3 (keep 3): arr[j-(2)] = arr[j-2]. Always start j at k-1 and i at k.`,
+        code: `// ✅ Allow 1 duplicate — keep at most 2 occurrences
+static int removeDuplicatesAllowOne(int[] arr, int n) {
+    if (n <= 2) return n; // 0,1,2 elements — nothing to remove
+    int j = 1; // start j at 1 (first TWO elements always kept)
+    for (int i = 2; i < n; i++) {
+        // arr[i] != arr[j-1] → not a third occurrence → ALLOW
+        // arr[i] == arr[j] but != arr[j-1] → second occurrence → ALLOW
+        // arr[i] == arr[j] == arr[j-1] → third occurrence → SKIP
+        if (arr[i] != arr[j - 1]) {
+            j++;
+            arr[j] = arr[i];
+        }
+    }
+    return j + 1;
+}
+// Trace [1,1,1,2,2,3]:
+// j=1, i starts at 2
+// i=2: arr[2]=1, arr[j-1]=arr[0]=1 → 1==1 → SKIP (3rd occurrence)
+// i=3: arr[3]=2, arr[j-1]=arr[0]=1 → 2!=1 → j=2 arr[2]=2 → [1,1,2,2,2,3]
+// i=4: arr[4]=2, arr[j-1]=arr[1]=1 → 2!=1 → j=3 arr[3]=2 → [1,1,2,2,2,3]
+// i=5: arr[5]=3, arr[j-1]=arr[2]=2 → 3!=2 → j=4 arr[4]=3 → [1,1,2,2,3,3]
+// return 5 → [1,1,2,2,3] ✅  (third 1 removed, both 2s kept, 3 kept)
+
+// Trace [2,2,2]:
+// j=1, i=2: arr[2]=2, arr[j-1]=arr[0]=2 → SKIP
+// return 2 → [2,2] ✅
+
+// ✅ Generic K version — allow up to K occurrences
+static int removeDuplicatesAllowK(int[] arr, int n, int k) {
+    if (n <= k) return n;
+    int j = k - 1; // first k elements always kept
+    for (int i = k; i < n; i++) {
+        if (arr[i] != arr[j - (k - 1)]) { // compare k positions back
+            j++;
+            arr[j] = arr[i];
+        }
+    }
+    return j + 1;
+}
+// removeDuplicatesAllowK(arr, n, 1) → keep 1 (remove all duplicates)
+// removeDuplicatesAllowK(arr, n, 2) → keep 2 (allow 1 duplicate)
+// removeDuplicatesAllowK(arr, n, 3) → keep 3 (allow 2 duplicates)
+
+// Summary of what changes per version:
+// Keep 1: j=0, i=1, compare arr[i] with arr[j]    (last written)
+// Keep 2: j=1, i=2, compare arr[i] with arr[j-1]  (second-last)
+// Keep K: j=k-1, i=k, compare arr[i] with arr[j-(k-1)]`
+      }
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "SQL — Highest Mark Per Subject Then Sum [11 Aug 2026]",
+    icon: "🗄",
+    color: "#F59E0B",
+    desc: "Two-level aggregation: a student can have multiple marks for the same subject — pick the highest per subject, then sum across subjects. Solved with subquery, CTE, ROW_NUMBER, and DENSE_RANK with explanation of when each is correct.",
+    topics: [
+      {
+        n: "Sum of marks per student — pick highest where multiple exist per subject",
+        tag: "AUG26",
+        desc: `PROBLEM: a student can have multiple rows for the same subject. Pick the HIGHEST mark per student per subject, then SUM those maxima per student.
+
+WHY A SINGLE GROUP BY FAILS:
+  SELECT name, SUM(marks) FROM student GROUP BY name
+  → Rama = 50+65+60+45 = 220 — WRONG (includes both Math scores)
+  Need two levels: MAX per (name,subject) first, then SUM per name.
+
+THREE CORRECT APPROACHES:
+
+1. SUBQUERY with MAX: inner query does GROUP BY name, subject with MAX(marks). Outer query does GROUP BY name with SUM(max_marks). Clean and universally supported.
+
+2. CTE (WITH clause): same logic but more readable. Names the intermediate result so you can reference it clearly.
+
+3. ROW_NUMBER() OVER (PARTITION BY name, subject ORDER BY marks DESC): assigns 1 to the highest mark in each name+subject group. WHERE rn=1 keeps only those, then outer SUM. ROW_NUMBER is SAFER than DENSE_RANK here — see explanation below.
+
+ROW_NUMBER vs DENSE_RANK for deduplication:
+- ROW_NUMBER: assigns unique sequential numbers even for ties (1,2,3). WHERE rn=1 always keeps EXACTLY ONE row per group.
+- DENSE_RANK: ties get the same number (1,1,2). WHERE rnk=1 keeps ALL tied rows. If two rows have the same max mark (80,80), both get rnk=1, both are kept, SUM doubles the count — WRONG.
+- Verdict: use ROW_NUMBER for this problem. Use DENSE_RANK only for the OUTER ranking (position on noticeboard).`,
+        code: `-- Data:
+-- Rama Math 50, Rama Math 65 (two rows for same subject!)
+-- Rama Physics 60, Rama English 45
+-- Hari Math 70, Hari Math 80 (two rows!)
+-- Hari Physics 65, Hari English 85
+
+-- ✅ Approach 1 — subquery with MAX (no WITH, no window function)
+SELECT name, SUM(max_marks) AS total_marks
+FROM (
+    SELECT name, subject, MAX(marks) AS max_marks
+    FROM student
+    GROUP BY name, subject     -- pick highest per student per subject
+) AS subject_best
+GROUP BY name
+ORDER BY total_marks DESC;
+-- Inner result: Rama Math 65 | Rama Physics 60 | Rama English 45
+--               Hari Math 80  | Hari Physics 65 | Hari English 85
+-- Output: Hari 230, Rama 170
+
+-- ✅ Approach 2 — CTE (same logic, more readable)
+WITH best_per_subject AS (
+    SELECT name, subject, MAX(marks) AS max_marks
+    FROM student
+    GROUP BY name, subject
+)
+SELECT name, SUM(max_marks) AS total_marks
+FROM best_per_subject
+GROUP BY name
+ORDER BY total_marks DESC;
+
+-- ✅ Approach 3 — ROW_NUMBER (window function, no WITH)
+SELECT name, SUM(marks) AS total_marks
+FROM (
+    SELECT name, subject, marks,
+           ROW_NUMBER() OVER (
+               PARTITION BY name, subject   -- restart per student+subject combo
+               ORDER BY marks DESC          -- highest mark gets rn=1
+           ) AS rn
+    FROM student
+) ranked
+WHERE rn = 1                               -- keep only highest per group
+GROUP BY name
+ORDER BY total_marks DESC;
+
+-- ⚠ Why NOT DENSE_RANK for deduplication:
+-- If Hari has Math 80 and Math 80 (two identical rows):
+-- DENSE_RANK → both get rnk=1 → WHERE rnk=1 keeps BOTH → SUM counts 80 twice = WRONG
+-- ROW_NUMBER → one gets rn=1, other rn=2 → WHERE rn=1 keeps exactly one → CORRECT
+
+-- ✅ Final noticeboard with position (DENSE_RANK on the OUTER total)
+SELECT
+    DENSE_RANK() OVER (ORDER BY total_marks DESC) AS position,
+    name,
+    total_marks
+FROM (
+    SELECT name, SUM(marks) AS total_marks
+    FROM (
+        SELECT name, subject, marks,
+               ROW_NUMBER() OVER (PARTITION BY name, subject ORDER BY marks DESC) AS rn
+        FROM student
+    ) ranked
+    WHERE rn = 1
+    GROUP BY name
+) totals
+ORDER BY total_marks DESC;
+-- position  name   total_marks
+-- 1         Hari   230
+-- 2         Rama   170
+
+-- Java Stream equivalent
+Map<String, Integer> result = students.stream()
+    .collect(Collectors.groupingBy(
+        s -> s.getName() + "|" + s.getSubject(),
+        Collectors.maxBy(Comparator.comparingInt(Student::getMarks))
+    ))
+    .values().stream()
+    .filter(Optional::isPresent).map(Optional::get)
+    .collect(Collectors.groupingBy(
+        Student::getName,
+        Collectors.summingInt(Student::getMarks)
+    ))
+    .entrySet().stream()
+    .sorted(Map.Entry.<String,Integer>comparingByValue().reversed())
+    .collect(Collectors.toMap(
+        Map.Entry::getKey, Map.Entry::getValue, (e1,e2)->e1, LinkedHashMap::new
+    ));`
+      },
+      {
+        n: "PARTITION BY — what happens if you forget it (the exact mistake)",
+        tag: "AUG26",
+        desc: `THE MISTAKE: writing ROW_NUMBER() OVER (ORDER BY marks DESC) without PARTITION BY.
+
+WITHOUT PARTITION BY — the window is the ENTIRE TABLE. ROW_NUMBER ranks all rows globally. rn=1 picks only the single highest mark row in the whole table. Everything else is filtered out. SUM then adds only that one row — completely wrong.
+
+WITH PARTITION BY name, subject — the window restarts for each unique (name, subject) combination. ROW_NUMBER assigns 1 to the highest mark WITHIN each group. rn=1 keeps one row per student per subject — exactly what we need.
+
+MENTAL MODEL:
+  PARTITION BY  =  GROUP BY for window functions
+  GROUP BY collapses rows → you lose individual rows
+  PARTITION BY restarts numbering per group → you KEEP all rows, just numbered
+
+RULE: whenever you want "top N PER GROUP" → always PARTITION BY the group columns.
+      Whenever you want "top N overall (no grouping)" → no PARTITION BY.`,
+        code: `-- ❌ WRONG — no PARTITION BY → single global window
+SELECT name, subject, marks,
+       ROW_NUMBER() OVER (
+           ORDER BY marks DESC    -- no PARTITION BY → ranks ALL rows globally
+       ) AS rn
+FROM student;
+-- Result:
+-- name   subject  marks  rn
+-- Hari   English  85     1   ← globally highest
+-- Hari   Math     80     2
+-- Hari   Math     70     3
+-- Hari   Physics  65     4
+-- Rama   Physics  60     5
+-- Rama   Math     65     6
+-- Rama   Math     50     7
+-- Rama   English  45     8
+-- WHERE rn=1 → keeps only "Hari English 85" → SUM = 85 → COMPLETELY WRONG
+
+-- ✅ CORRECT — with PARTITION BY name, subject
+SELECT name, subject, marks,
+       ROW_NUMBER() OVER (
+           PARTITION BY name, subject   -- ← these two words fix everything
+           ORDER BY marks DESC
+       ) AS rn
+FROM student;
+-- Result:
+-- Hari  English  85   1  ← rn restarted for Hari+English
+-- Hari  Math     80   1  ← rn restarted for Hari+Math
+-- Hari  Math     70   2
+-- Hari  Physics  65   1  ← rn restarted for Hari+Physics
+-- Rama  English  45   1
+-- Rama  Math     65   1
+-- Rama  Math     50   2
+-- Rama  Physics  60   1
+-- WHERE rn=1 → 6 rows (one per student+subject) → SUM per name → CORRECT ✅
+
+-- How to remember:
+-- No PARTITION BY → "top N across whole table"  e.g. top 3 marks overall
+-- PARTITION BY X  → "top N within each X group" e.g. top 1 mark per student per subject`
+      }
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 13 AUG 2026 — Process monitoring, threads per core, final+mutable
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Server Diagnostics — Stuck Process & Thread-Per-Core [13 Aug 2026]",
+    icon: "🖥",
+    color: "#06B6D4",
+    desc: "How to diagnose a stuck process on a Linux server — CPU, thread dumps, heap dumps, Actuator endpoints. Plus the exact command to see which thread is running on which CPU core.",
+    topics: [
+      {
+        n: "How to know if a process is stuck when running on a server",
+        tag: "AUG26",
+        desc: `DECISION TREE — what to check first:
+CPU near 100% → thread dump (jstack) → look for RUNNABLE threads with same stack trace → infinite loop in code.
+CPU near 0%, memory stable → thread dump → look for BLOCKED or WAITING threads → deadlock (jstack explicitly prints "Found one Java-level deadlock").
+Memory growing every minute → heap dump (jmap) → Eclipse MAT → Leak Suspects → object accumulating in Old Gen.
+Process state = D in ps → stuck on IO (disk/network) → check lsof, netstat — hung DB/network connection.
+CrashLoopBackOff in Kubernetes → kubectl logs --previous → OOMKill? Exception on startup? Check resource limits.
+
+THREAD DUMP STATES TO LOOK FOR:
+RUNNABLE with same stack trace on repeated dumps → infinite loop at that line.
+BLOCKED → waiting for a monitor lock held by another thread → potential deadlock.
+WAITING → stuck in wait() or join() → nobody calling notify().
+D state in ps → uninterruptible sleep → IO that never returns.
+
+KEY TOOLS: jstack (thread dump), jmap (heap dump), Eclipse MAT (analyze heap), /actuator/threaddump (HTTP), kubectl describe pod (K8s).`,
+        code: `# ── Is process alive? ──────────────────────────────────────────
+ps aux | grep java
+# USER  PID  %CPU %MEM  COMMAND
+# app  1234  99.9  45.2  java -jar ticket-service.jar  ← 99% CPU = stuck loop?
+
+# Process state — D state is most dangerous
+cat /proc/1234/status | grep State
+# State: R (running)  S (sleeping)  D (uninterruptible IO = STUCK)  Z (zombie)
+
+# ── CPU diagnosis ──────────────────────────────────────────────
+top -p 1234          # watch specific PID
+# CPU 100% + memory stable = infinite loop
+# CPU ~0%  + memory stable = deadlock
+# Memory growing every minute = memory leak
+
+# ── Thread dump — best diagnostic tool ────────────────────────
+jstack 1234 > /tmp/threaddump.txt
+kill -3 1234         # SIGQUIT → JVM prints thread dump to stdout (non-destructive)
+curl http://localhost:8080/actuator/threaddump  # via Spring Boot Actuator
+
+# What to look for in thread dump:
+# "GC Thread#0" state=RUNNABLE at RuleService.evaluate:45  ← same line on 3 dumps = loop
+# "exec-2" state=BLOCKED waiting to lock <0x7f> held by "exec-1" ← deadlock candidate
+# jstack prints explicitly: "Found one Java-level deadlock:" ← deadlock confirmed
+
+# ── Heap dump — memory leak diagnosis ──────────────────────────
+jmap -dump:live,format=b,file=/tmp/heap.hprof 1234
+# Open in Eclipse MAT → Leak Suspects Report → Dominator Tree
+# Shows: which object holds most memory, which class is accumulating
+
+# JVM startup flags — add these before incidents happen
+# -XX:+HeapDumpOnOutOfMemoryError
+# -XX:HeapDumpPath=/var/logs/heap.hprof
+# -Xlog:gc*:file=/var/logs/gc.log
+
+# ── Network / IO diagnosis ─────────────────────────────────────
+lsof -p 1234 | grep TCP          # all open TCP connections
+netstat -an | grep CLOSE_WAIT    # stuck connections — remote closed, we didn't
+lsof -p 1234 | grep "5432"       # DB connection (postgres port)
+
+# ── Spring Boot Actuator ───────────────────────────────────────
+curl http://localhost:8080/actuator/health        # UP or DOWN + component status
+curl http://localhost:8080/actuator/threaddump    # live thread dump via HTTP
+curl http://localhost:8080/actuator/heapdump -o heap.hprof
+curl http://localhost:8080/actuator/metrics/http.server.requests
+# Change log level at runtime — no restart needed!
+curl -X POST http://localhost:8080/actuator/loggers/com.example \
+     -H "Content-Type: application/json" -d '{"configuredLevel":"DEBUG"}'
+
+# ── Kubernetes ─────────────────────────────────────────────────
+kubectl get pods                          # Running / CrashLoopBackOff / OOMKilled
+kubectl describe pod ticket-service-abc   # events, restart reasons, OOM
+kubectl logs ticket-service-abc -f        # live logs
+kubectl logs ticket-service-abc --previous # logs of LAST crashed pod
+kubectl top pod ticket-service-abc        # CPU/memory vs limits
+kubectl exec -it ticket-service-abc -- sh # get inside, run jstack/jmap
+
+# ── OS killed it? ──────────────────────────────────────────────
+dmesg | grep -i "killed process"
+# "Out of memory: Kill process 1234 (java) score 900 or sacrifice child"
+# → OOM Killer chose your process — increase memory or fix leak`
+      },
+      {
+        n: "Command to check all threads running on each CPU core",
+        tag: "AUG26",
+        desc: `LINUX THREADS AND CORES: in Linux, threads are represented as LWP (Light Weight Process). Each thread has its own LWP ID. The PSR column in ps output shows which processor (core) a thread is currently assigned to.
+
+HOW TO MAP JAVA THREAD TO CORE:
+Step 1: jstack gives you nid (native ID) in HEX e.g. nid=0x4d3.
+Step 2: convert hex to decimal: printf '%d\\n' 0x4d3 → 1235.
+Step 3: ps -eLo pid,lwp,psr shows LWP 1235 is on Core 2.
+Step 4: go back to jstack output, find the thread with nid=0x4d3 → see its stack trace → know what code is running on Core 2.
+
+USEFUL DIAGNOSIS PATTERNS:
+mpstat -P ALL 1 → if Core 0 is at 100% and all others idle → one thread is stuck on Core 0 (or CPU affinity is misconfigured).
+ps output sorted by PSR → tells you which core has the most threads → load imbalance.
+taskset → check or change which cores a process is allowed to use (CPU affinity).`,
+        code: `# ── See ALL threads of a process with their CPU core ──────────
+ps -eLo pid,lwp,psr,pcpu,comm | grep java
+# PID    LWP   PSR  %CPU  COMMAND
+# 1234  1234    0   99.9  java    ← thread 1234 running on Core 0 at 99%!
+# 1234  1235    3    0.1  java    ← thread 1235 on Core 3
+# 1234  1236    1   45.2  java    ← thread 1236 on Core 1
+# 1234  1237    2    0.0  java    ← thread 1237 idle on Core 2
+# PSR = Processor number (core) thread is currently assigned to
+
+# All threads of a specific PID sorted by core
+ps -eLo pid,lwp,psr,pcpu | awk 'NR==1 || $1==1234' | sort -k3
+# Groups threads by core — shows which core is most loaded
+
+# ── Real-time per-core stats ────────────────────────────────────
+mpstat -P ALL 1
+# CPU  %usr  %sys  %iowait  %idle
+# all  45.2   2.1     0.5   52.2
+#   0  99.9   0.1     0.0    0.0   ← Core 0 maxed out → stuck thread here!
+#   1   0.5   0.2     0.0   99.3   ← Core 1 idle
+#   2  45.1   3.2     0.0   51.7
+#   3   0.0   0.0     5.2   94.8   ← Core 3 waiting on IO
+
+# ── top with per-core and per-thread view ───────────────────────
+top -p 1234
+# Then press: 1  → expand all CPU cores individually
+# Then press: H  → show threads instead of processes
+# Now you see each thread's CPU usage + which core
+
+# htop (better UI)
+htop -p 1234
+# Top bar shows individual core meters — see which core is hot
+
+# ── Map JAVA thread to core (3-step process) ────────────────────
+# Step 1: get hex thread ID from jstack
+jstack 1234 | grep -A 5 "nid="
+# "http-nio-8080-exec-1" RUNNABLE nid=0x4d3
+#     at com.example.RuleService.evaluate(RuleService.java:45)  ← THE STUCK LINE
+
+# Step 2: convert hex to decimal
+printf '%d\n' 0x4d3    # → 1235
+
+# Step 3: find which core that thread is on
+ps -eLo pid,lwp,psr | grep "1234" | grep "1235"
+# 1234  1235   0   ← Java thread nid=0x4d3 is on Core 0
+# Confirms: Core 0 at 100% (from mpstat) = this RuleService thread
+
+# ── CPU affinity — check and change ────────────────────────────
+taskset -cp 1234              # show cores this process can use
+# pid 1234's current affinity list: 0-7  (all 8 cores allowed)
+
+taskset -cp 0,1 1234          # restrict to only Core 0 and Core 1
+# Useful to isolate a runaway process from starving others
+
+# ── Inside Kubernetes ───────────────────────────────────────────
+kubectl exec -it ticket-service-abc -- sh
+ps -eLo pid,lwp,psr,pcpu | grep java   # same command works inside container
+cat /proc/1/status | grep Threads       # Threads: 45 (total thread count)`
+      }
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Java — final class with mutable field, Abstract vs Normal Java 17+ [13 Aug 2026]",
+    icon: "☕",
+    color: "#22C55E",
+    desc: "final on a reference locks the pointer not the object — mutable Address can still be changed. Abstract vs normal class differences after Java 17 — sealed classes, records, pattern matching.",
+    topics: [
+      {
+        n: "final class Employee with final Address add — can you still mutate Address?",
+        tag: "AUG26",
+        desc: `SHORT ANSWER: YES — you can absolutely still change the contents of the Address object.
+
+final ON A REFERENCE FIELD means:
+  - The reference (pointer) CANNOT be reassigned to a different object.
+  - The reference CANNOT be set to null.
+  - The OBJECT AT THE END OF THE REFERENCE is completely unaffected.
+
+final does NOT make the referenced object immutable. It only locks WHICH object the field points to — not WHAT that object contains.
+
+This is the single most important distinction for understanding Java immutability.
+
+VISUAL MODEL:
+Stack: emp.add ──(final arrow — cannot redirect)──→ Heap: Address { city="Pune" }
+The arrow is locked. The box at the end of the arrow is NOT locked.
+
+TO MAKE EMPLOYEE TRULY IMMUTABLE you need FIVE rules:
+1. Class declared final (prevents subclassing that could expose state)
+2. All fields private final (no direct access, no reassignment)
+3. No setters anywhere
+4. Defensive copy in constructor (own your data — don't share caller's reference)
+5. Defensive copy in getters (never expose internal mutable object — return a copy)
+
+Your current Employee violates rules 2 (fields are package-private, not private), 4 (no defensive copy of Address in constructor), and 5 (no defensive copy when returning Address).`,
+        code: `final class Employee {
+    final int id;
+    final String name;
+    final Address add;   // final REFERENCE — not final OBJECT
+}
+
+Employee emp = new Employee(1, "Satyam", new Address("Pune", 411001));
+
+// ✅ These ALL work — changing the object, not the reference
+emp.add.city = "Mumbai";           // direct field mutation — works!
+emp.add.setCity("Mumbai");         // setter call — works!
+emp.add.pincode = 400001;          // another field — works!
+
+// ❌ These FAIL — trying to change the reference itself
+emp.add = new Address("Delhi", 110001); // compile error: cannot assign to final
+emp.add = null;                         // compile error: cannot assign to final
+
+// VISUAL:
+// emp.add ──(LOCKED)──→ Address { city="Pune" }
+//                               ↑
+//                       can change what's INSIDE the box
+//                       cannot redirect the arrow to a new box
+
+// ─────────────────────────────────────────────────────────────
+// TRULY IMMUTABLE Employee — all 5 rules applied
+// ─────────────────────────────────────────────────────────────
+final class Address {
+    private final String city;     // rule 2: private final
+    private final int pincode;
+
+    Address(String city, int pincode) { this.city = city; this.pincode = pincode; }
+    Address(Address other) { this.city = other.city; this.pincode = other.pincode; } // copy ctor
+    String getCity()   { return city; }    // no setters — rule 3
+    int getPincode()   { return pincode; }
+}
+
+final class Employee {             // rule 1: final class
+    private final int id;          // rule 2: private final fields
+    private final String name;
+    private final Address add;
+
+    Employee(int id, String name, Address add) {
+        this.id   = id;
+        this.name = name;
+        this.add  = new Address(add); // rule 4: defensive copy in constructor
+        // WITHOUT this: caller keeps reference to same Address → can mutate it
+    }
+
+    int getId()      { return id; }
+    String getName() { return name; }
+    Address getAdd() {
+        return new Address(add);  // rule 5: defensive copy in getter
+        // WITHOUT this: caller gets our internal Address reference → can mutate it
+    }
+}
+
+// Now truly immutable:
+Employee emp = new Employee(1, "Satyam", new Address("Pune", 411001));
+emp.getAdd().city = "Mumbai";   // ❌ compile error — Address.city is private final
+// Even if Address had a setter: emp.getAdd() returns a COPY → original untouched ✅`
+      },
+      {
+        n: "Abstract vs Normal class — key differences after Java 17",
+        tag: "AUG26",
+        desc: `CORE RULE (unchanged since Java 1.0):
+Abstract class → CANNOT be instantiated. Can have abstract methods. Subclass MUST implement all abstract methods (or also be abstract).
+Normal class   → CAN be instantiated. CANNOT have abstract methods.
+
+WHAT JAVA 17 ADDED that affects this question:
+
+1. SEALED CLASSES (Java 17): both abstract and normal classes can be sealed. sealed abstract class = closed hierarchy (only permitted subclasses) + no instantiation. Enables exhaustive switch without default. Compiler knows ALL possible subtypes.
+
+2. PATTERN MATCHING for switch (Java 17 preview, Java 21 standard): sealed abstract class + switch = compiler verifies all cases are covered. Add a new subtype and forget to add a case → compile error. Type-safe, null-safe, exhaustive.
+
+3. RECORDS (Java 16): records implicitly extend java.lang.Record and are implicitly final. They CANNOT extend any abstract class. They CAN implement interfaces.
+
+4. PRIVATE METHODS IN INTERFACE (Java 9 — often missed): interfaces can now have private methods for code reuse between default methods. This narrowed the gap between interface and abstract class. But the KEY remaining difference is still: abstract class has STATE (instance fields) and a constructor. Interface has no state, no constructor.
+
+WHEN TO CHOOSE ABSTRACT CLASS vs INTERFACE after Java 17:
+Abstract class: subclasses share COMMON STATE (fields), need a base constructor, Template Method pattern, strong "is-a" with shared behaviour.
+Interface: defining a CAPABILITY, multiple inheritance needed, lambda/functional use, no shared state.
+Sealed abstract class: FIXED set of subtypes, exhaustive pattern matching, domain modelling (Result, Shape, Event).`,
+        code: `// ─── Core difference ────────────────────────────────────────────
+abstract class Vehicle {
+    abstract void start();      // must be overridden — no body
+    void stop() { System.out.println("Stopping"); } // optional to override
+}
+new Vehicle(); // ❌ cannot instantiate abstract class
+
+class Car extends Vehicle {
+    void start() { System.out.println("Car starting"); }
+}
+new Car(); // ✅ works — normal class
+
+// ─── Java 17: Sealed abstract class ─────────────────────────────
+sealed abstract class Shape permits Circle, Rectangle, Triangle {
+    abstract double area();
+}
+final class Circle    extends Shape { double r; double area() { return Math.PI*r*r; } }
+final class Rectangle extends Shape { double w,h; double area() { return w*h; } }
+final class Triangle  extends Shape { double b,h; double area() { return 0.5*b*h; } }
+
+class Pentagon extends Shape { } // ❌ compile error — not in permits list
+
+// Exhaustive switch — NO default needed (compiler knows all subtypes)
+double getArea(Shape s) {
+    return switch (s) {
+        case Circle    c -> Math.PI * c.r * c.r;
+        case Rectangle r -> r.w * r.h;
+        case Triangle  t -> 0.5 * t.b * t.h;
+        // No default → compiler verifies all cases covered
+        // Add new subtype + forget case → compile error ✅
+    };
+}
+
+// ─── Records CANNOT extend abstract class ───────────────────────
+abstract class Shape2 { abstract double area(); }
+record Circle2(double r) extends Shape2 { } // ❌ records can't extend classes
+record Circle3(double r) implements Measurable { } // ✅ records CAN implement interfaces
+interface Measurable { double area(); }
+
+// ─── Private methods in interface (Java 9) ──────────────────────
+interface PaymentProcessor {
+    void processPayment(double amount);
+    default void processWithLog(double amount) {
+        logTransaction(amount);   // reuse private method
+        processPayment(amount);
+    }
+    default void processWithAudit(double amount) {
+        logTransaction(amount);   // same private method — DRY
+        processPayment(amount);
+    }
+    private void logTransaction(double amount) { // Java 9+
+        System.out.println("Processing: " + amount);
+    }
+}
+
+// ─── Remaining key difference after Java 17 ─────────────────────
+// Abstract class:   HAS instance fields + constructor = can hold STATE
+// Interface:        NO instance fields, NO constructor = pure CONTRACT
+abstract class SessionManager {
+    private final String sessionId;   // STATE — only abstract class can have this
+    SessionManager(String id) { this.sessionId = id; } // constructor
+    abstract void invalidate();
+}
+// No interface equivalent — this is still the primary deciding factor`
+      }
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 15 AUG 2026 — Equilibrium + Wiggle sort streams, SQL sum with duplicates
+  // ─────────────────────────────────────────────────────────────
+  {
+    cat: "Coding Assessment — Stream Solutions [15 Aug 2026]",
+    icon: "◑",
+    color: "#8B5CF6",
+    desc: "Live coding assessment solutions: equilibrium index (1-based) and wiggle sort using Java 8 streams. Stateful lambda pattern with int[] wrapper. SQL two-level aggregation without WITH clause using DENSE_RANK.",
+    topics: [
+      {
+        n: "Equilibrium Index (1-based) — iterative fix + stream version",
+        tag: "AUG26",
+        desc: `PROBLEM: find the first 1-based index where sum of elements BEFORE it equals sum AFTER it.
+Array [2,2,5,6,-2]: at index 3 → left=2+2=4, right=6+(-2)=4 ✅
+
+ORIGINAL CODE BUGS:
+1. Used HashMap for prefix sums — unnecessary, wrong key mapping (containsKey(i-1) breaks at i=0).
+2. Missing 1-based return — should be i+1 not i.
+3. The test case output happened to match (3==3) by coincidence but all 11 test cases failed.
+
+CLEAN FIX: totalSum computed once. leftSum tracks running sum of elements before i. rightSum = totalSum - leftSum - arr[i]. If equal → return i+1 (1-based).
+
+STREAM VERSION — THE int[] WRAPPER PATTERN:
+Lambda expressions in Java require variables to be effectively final. A plain int leftSum cannot be mutated inside a lambda. The workaround: int[] leftSum = {0} — a SINGLE-ELEMENT ARRAY. The ARRAY REFERENCE is effectively final (never reassigned). The ELEMENT INSIDE can be mutated freely. This is the standard pattern for stateful accumulation inside Java stream lambdas.`,
+        code: `// ✅ Iterative fix — O(n) time, O(1) space
+static int solve(int[] arr) {
+    int totalSum = Arrays.stream(arr).sum();
+    int leftSum = 0;
+    for (int i = 0; i < arr.length; i++) {
+        int rightSum = totalSum - leftSum - arr[i];
+        if (leftSum == rightSum) return i + 1;  // 1-based
+        leftSum += arr[i];
+    }
+    return -1;
+}
+// Trace [2,2,5,6,-2], total=13:
+// i=0: right=13-0-2=11   left(0)==right(11)?  NO   leftSum→2
+// i=1: right=13-2-2=9    left(2)==right(9)?   NO   leftSum→4
+// i=2: right=13-4-5=4    left(4)==right(4)?   YES  return 3 ✅
+
+// ✅ Stream version — stateful with int[] wrapper
+static int solveStream(int[] arr) {
+    int totalSum = Arrays.stream(arr).sum();
+    int[] leftSum = {0};  // int[] reference is effectively final — element is mutable
+    return IntStream.range(0, arr.length)
+        .filter(i -> {
+            int rightSum = totalSum - leftSum[0] - arr[i];
+            boolean eq = leftSum[0] == rightSum;
+            leftSum[0] += arr[i];   // mutate element — allowed!
+            return eq;
+        })
+        .map(i -> i + 1)            // 1-based index
+        .findFirst()
+        .orElse(-1);
+}
+// WHY int[] and not plain int:
+// int leftSum2 = 0;
+// .filter(i -> { leftSum2 += arr[i]; return ...; }) // ❌ COMPILE ERROR
+// "Variable used in lambda expression should be final or effectively final"
+// int[] leftSum = {0}  → reference never changes → effectively final → ✅`
+      },
+      {
+        n: "Wiggle Sort (alternating high-low) — O(n) fix + stream version",
+        tag: "AUG26",
+        desc: `PROBLEM: rearrange sorted ascending array so it alternates high-low-high-low.
+[1,2,3,4,5,6,7] → [2,1,4,3,6,5,7]
+Each even-indexed (0-based) element must be greater than its neighbours.
+
+ORIGINAL ERROR: Time Limit Exceeded — O(n²) or O(n log n) approach (likely sorting inside loop).
+
+THE O(n) INSIGHT: array is already sorted so arr[i+1] >= arr[i] always. Swapping adjacent PAIRS (0↔1, 2↔3, 4↔5...) guarantees the larger of each pair goes to the even index. Each even index is ≥ both its odd-index neighbours → wiggle property satisfied. This is a single pass O(n).
+
+STREAM VERSION — no mutation needed:
+Build a NEW array via IntStream.range. At even index i → take arr[i+1] (the larger). At odd index i → take arr[i-1] (the smaller). Last element stays if length is odd. Purely functional — reads original array, writes new array — no in-place mutation. This is SAFER than in-place for parallel streams which would cause race conditions if reading and writing the same array simultaneously.`,
+        code: `// ✅ Iterative fix — O(n) single pass, in-place swap
+static int[] solve(int[] arr) {
+    for (int i = 0; i < arr.length - 1; i += 2) {
+        int temp = arr[i]; arr[i] = arr[i+1]; arr[i+1] = temp;
+    }
+    return arr;
+}
+// Trace [1,2,3,4,5,6,7]:
+// i=0: swap(arr[0],arr[1]) → [2,1,3,4,5,6,7]
+// i=2: swap(arr[2],arr[3]) → [2,1,4,3,5,6,7]
+// i=4: swap(arr[4],arr[5]) → [2,1,4,3,6,5,7]
+// i=6: 6 >= length-1=6 → stop (7 stays)
+// Result: [2,1,4,3,6,5,7] — even indices (2,4,6) > their neighbours ✅
+
+// WHY IT WORKS: arr is sorted so arr[i+1] >= arr[i] always.
+// After swap: arr[even] = old arr[odd] = larger of pair
+//             arr[odd]  = old arr[even] = smaller of pair
+// arr[even] >= arr[even-1] (previous odd, smaller of prev pair) ✅
+// arr[even] >= arr[even+1] (next odd, smaller of next pair) ✅
+
+// ✅ Stream version — functional, zero mutation of original
+static int[] solveStream(int[] arr) {
+    return IntStream.range(0, arr.length)
+        .map(i -> {
+            if (i % 2 == 0 && i + 1 < arr.length) return arr[i + 1]; // even → take next (larger)
+            if (i % 2 == 1)                         return arr[i - 1]; // odd  → take prev (smaller)
+            return arr[i]; // last element when length is odd
+        })
+        .toArray();
+}
+// Trace [1,2,3,4,5,6,7]:
+// i=0 even → arr[1]=2  |  i=1 odd → arr[0]=1
+// i=2 even → arr[3]=4  |  i=3 odd → arr[2]=3
+// i=4 even → arr[5]=6  |  i=5 odd → arr[4]=5
+// i=6 even, no i+1     → arr[6]=7
+// Result: [2,1,4,3,6,5,7] ✅
+
+// WHY stream needs a NEW array (not in-place):
+// Reading arr[i+1] while writing arr[i] in-place causes:
+// - Sequential: arr[0] written to arr[1]'s value, then arr[1] reads already-overwritten arr[0] ← WRONG
+// - Parallel: race condition — reading and writing same array simultaneously
+// Functional approach reads ORIGINAL, writes NEW array — always correct`
       }
     ]
   }
